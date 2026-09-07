@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Sun, Moon, Monitor } from 'lucide-react';
 
 export type Theme = 'light' | 'dark' | 'system';
 
 // Kept in step with the pre-paint script in index.html.
 const KEY = 'ai-json-organizer:theme';
 
-const OPTIONS: { value: Theme; label: string; Icon: typeof Sun }[] = [
-  { value: 'light', label: 'Light', Icon: Sun },
-  { value: 'system', label: 'Match system', Icon: Monitor },
-  { value: 'dark', label: 'Dark', Icon: Moon },
+const OPTIONS: { value: Theme; label: string }[] = [
+  { value: 'system', label: 'Match system' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
 ];
 
 function stored(): Theme {
@@ -33,9 +32,9 @@ function apply(theme: Theme) {
 }
 
 /**
- * "System" is resolved here rather than in CSS. That costs a matchMedia listener
- * but buys a single set of light tokens: a prefers-color-scheme copy is a second
- * place to add a token to, and the one that gets forgotten.
+ * A labelled control rather than a sun/moon switch. The icon toggle is the
+ * default every interface reaches for, and it hides the third option this app
+ * actually has: following the system.
  */
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(stored);
@@ -57,19 +56,22 @@ export function ThemeToggle() {
   }, [theme]);
 
   return (
-    <div className="theme-toggle" role="group" aria-label="Colour theme">
-      {OPTIONS.map(({ value, label, Icon }) => (
-        <button
-          key={value}
-          className={`theme-btn ${theme === value ? 'active' : ''}`}
-          onClick={() => setTheme(value)}
-          title={label}
-          aria-label={label}
-          aria-pressed={theme === value}
-        >
-          <Icon />
-        </button>
-      ))}
+    <div className="theme-toggle">
+      <label className="theme-label" htmlFor="theme-select">
+        Theme
+      </label>
+      <select
+        id="theme-select"
+        className="theme-select"
+        value={theme}
+        onChange={e => setTheme(e.target.value as Theme)}
+      >
+        {OPTIONS.map(({ value, label }) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

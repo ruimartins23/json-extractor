@@ -1,100 +1,124 @@
 :root {
-  --background: #08080d;
-  --foreground: #f4f6fb;
-  --primary: #60a5fa;
-  --primary-strong: #3b82f6;
-  --primary-foreground: #ffffff;
-  --primary-glow: rgba(59, 130, 246, 0.45);
-  --accent: #c084fc;
-  --accent-glow: rgba(168, 85, 247, 0.45);
-  --destructive: #f87171;
-  --success: #34d399;
-  --warning: #fbbf24;
-  --text-secondary: rgba(226, 232, 240, 0.62);
-  --text-muted: rgba(226, 232, 240, 0.42);
-  --border-glass: rgba(255, 255, 255, 0.08);
-  --bg-glass: rgba(15, 18, 32, 0.55);
-  --bg-inset: rgba(2, 4, 12, 0.45);
-  --text-primary: #f4f6fb;
-  /* Channel triplets, so one value flips every overlay built on them. */
-  --sheen: 255, 255, 255;   /* highlights and hairlines over the surface */
-  --haze: 148, 163, 184;    /* muted fills: chips, tracks, inset panels */
-  --ink: 8, 8, 13;          /* scrims and wells */
-  --shadow: 0, 0, 0;
-  --wash-a: rgba(59, 130, 246, 0.14);
-  --wash-b: rgba(168, 85, 247, 0.13);
-  --wash-c: rgba(236, 72, 153, 0.07);
-  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.45);
-  --wave-lit: rgba(96, 165, 250, 0.95);
-  --wave-dim: rgba(148, 163, 184, 0.18);
-  /* Pale on dark, deepened on light, so tinted text stays legible either way. */
-  --primary-soft: #93c5fd;
-  --success-soft: #6ee7b7;
-  --neutral-soft: #9ca3af;
-  --surface-solid: #10131f;
-  /* Only the hue is per-agent; the rest has to follow the theme or the badge
-     keeps a dark-mode lightness on white. */
-  --agent-s: 90%;
-  --agent-l: 74%;
-  --agent-fill-s: 75%;
-  --agent-fill-l: 62%;
-  /* Collapsed panels recede by sinking on dark and by lifting on light. */
-  --bg-glass-muted: rgba(15, 18, 32, 0.3);
-  --radius: 1rem;
-  --radius-sm: 0.5rem;
-  /* One height and one radius for every control, so rows line up. */
+  /* One warm neutral family, tinted consistently. The incumbent mixed cool
+     slate greys with a blue/purple/pink accent field -- the AI fingerprint. */
+  --background: #090806;
+  --foreground: #f2ece0;
+  --text-primary: #f2ece0;
+  --text-secondary: rgba(242, 236, 224, 0.66);
+  --text-muted: rgba(242, 236, 224, 0.46);
+
+  /* ONE accent. Desaturated ochre, ~55% saturation, nowhere near the
+     oversaturated blue it replaces. --accent is an alias, not a second colour. */
+  --primary: #d0a253;
+  --primary-strong: #b8873a;
+  --primary-foreground: #16130d;
+  --primary-glow: rgba(208, 162, 83, 0.28);
+  --accent: var(--primary);
+  --accent-glow: var(--primary-glow);
+  --primary-soft: #e0bd80;
+
+  /* Semantic status stays distinguishable but is pulled down to match. */
+  --destructive: #d1806c;
+  --success: #8fae74;
+  --warning: #d0a253;
+  --success-soft: #a8c48f;
+  --neutral-soft: #a39a89;
+  --surface-solid: #121009;
+
+  --border-glass: rgba(242, 236, 224, 0.10);
+  --border-inner: rgba(242, 236, 224, 0.07);
+  --bg-glass: rgba(22, 20, 15, 0.6);
+  --bg-inset: rgba(3, 3, 2, 0.55);
+  --bg-glass-muted: rgba(16, 14, 11, 0.4);
+
+  --sheen: 242, 236, 224;
+  --haze: 163, 154, 137;
+  --ink: 8, 7, 5;
+  --shadow: 12, 9, 5;
+
+  /* Shadows carry the ground's hue instead of generic black, and the glass
+     gets an inner border plus an inner shadow so the edge reads as refraction
+     rather than a flat blur. */
+  --shadow-card: 0 10px 34px rgba(0, 0, 0, 0.6);
+  --glass-edge: inset 0 1px 0 rgba(242, 236, 224, 0.07),
+                inset 0 0 0 1px rgba(242, 236, 224, 0.03),
+                inset 0 -14px 28px -22px rgba(12, 9, 5, 0.7);
+
+  --wash-a: rgba(208, 162, 83, 0.10);
+  --wash-b: rgba(208, 162, 83, 0.06);
+  --wash-c: rgba(163, 154, 137, 0.05);
+  --wave-lit: #d0a253;
+  --wave-dim: rgba(163, 154, 137, 0.22);
+
+  --agent-s: 42%;
+  --agent-l: 70%;
+  --agent-fill-s: 36%;
+  --agent-fill-l: 55%;
+
+  /* Varied, not uniform: softer on containers, tighter on the things inside. */
+  --radius: 1.125rem;
+  --radius-sm: 0.625rem;
+  --radius-control: 0.5rem;
   --control-h: 2.375rem;
-  --radius-control: 0.625rem;
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+
+  /* A real scale, so nothing reaches for 9999 again. */
+  --z-base: 1;
+  --z-sticky: 30;
+  --z-overlay: 60;
+  --z-modal: 100;
+
+  --font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-heading: var(--font-family);
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
-
-/* Light theme. Only the tokens change: every rule above is written against them.
-   ThemeToggle resolves "system" to a concrete attribute before paint, so this is
-   the single definition -- there is no prefers-color-scheme copy to drift from. */
+/* Light. Same warm family, same single accent, deepened to hold on paper. */
 :root[data-theme="light"] {
-  --background: #f6f7fb;
-  --foreground: #0d1117;
-  --text-primary: #0d1117;
-  --text-secondary: rgba(15, 23, 42, 0.68);
-  --text-muted: rgba(15, 23, 42, 0.5);
+  --background: #f4f1e9;
+  --foreground: #191610;
+  --text-primary: #191610;
+  --text-secondary: rgba(25, 22, 16, 0.70);
+  --text-muted: rgba(25, 22, 16, 0.52);
 
-  --primary: #2563eb;
-  --primary-strong: #2563eb;
-  --primary-glow: rgba(37, 99, 235, 0.28);
-  --accent: #7c3aed;
-  --accent-glow: rgba(124, 58, 237, 0.25);
-  --destructive: #dc2626;
-  --success: #059669;
-  --warning: #b45309;
+  --primary: #8a6420;
+  --primary-strong: #6f4f16;
+  --primary-foreground: #fffdf8;
+  --primary-glow: rgba(138, 100, 32, 0.22);
+  --primary-soft: #6f4f16;
 
-  --border-glass: rgba(15, 23, 42, 0.12);
-  --bg-glass: rgba(255, 255, 255, 0.78);
-  --bg-inset: rgba(15, 23, 42, 0.04);
+  --destructive: #a8442f;
+  --success: #4d6b39;
+  --warning: #8a6420;
+  --success-soft: #3d5a2c;
+  --neutral-soft: #5c5445;
+  --surface-solid: #fffdf8;
 
-  /* Inverted: overlays now darken the surface instead of lifting it. */
-  --sheen: 15, 23, 42;
-  --haze: 100, 116, 139;
-  --ink: 226, 232, 240;
-  --shadow: 15, 23, 42;
+  --border-glass: rgba(25, 22, 16, 0.12);
+  --border-inner: rgba(25, 22, 16, 0.06);
+  --bg-glass: rgba(255, 253, 248, 0.72);
+  --bg-inset: rgba(25, 22, 16, 0.045);
+  --bg-glass-muted: rgba(255, 253, 248, 0.45);
 
-  --wash-a: rgba(37, 99, 235, 0.09);
-  --wash-b: rgba(124, 58, 237, 0.08);
-  --wash-c: rgba(236, 72, 153, 0.05);
-  --shadow-card: 0 6px 24px rgba(15, 23, 42, 0.09);
-  --wave-lit: rgba(37, 99, 235, 0.9);
-  --wave-dim: rgba(100, 116, 139, 0.3);
-  --primary-soft: #1d4ed8;
-  --success-soft: #047857;
-  --neutral-soft: #475569;
-  --surface-solid: #ffffff;
-  --agent-s: 70%;
+  --sheen: 25, 22, 16;
+  --haze: 92, 84, 69;
+  --ink: 236, 231, 219;
+  --shadow: 60, 48, 28;
+
+  --shadow-card: 0 8px 28px rgba(60, 48, 28, 0.10);
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.7),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+                inset 0 -14px 28px -24px rgba(60, 48, 28, 0.25);
+
+  --wash-a: rgba(138, 100, 32, 0.07);
+  --wash-b: rgba(138, 100, 32, 0.05);
+  --wash-c: rgba(92, 84, 69, 0.04);
+  --wave-lit: #8a6420;
+  --wave-dim: rgba(92, 84, 69, 0.28);
+
+  --agent-s: 40%;
   --agent-l: 32%;
-  --agent-fill-s: 60%;
-  --agent-fill-l: 45%;
-  --bg-glass-muted: rgba(255, 255, 255, 0.45);
+  --agent-fill-s: 36%;
+  --agent-fill-l: 42%;
 }
 
 * {
@@ -158,7 +182,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::selection {
-  background: rgba(96, 165, 250, 0.32);
+  background: color-mix(in srgb, var(--primary) 32%, transparent);
   color: var(--foreground);
 }
 
@@ -202,7 +226,7 @@ input, textarea, select {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius);
-  box-shadow: inset 0 1px 0 rgba(var(--sheen), 0.06), var(--shadow-card);
+  box-shadow: var(--glass-edge), var(--shadow-card);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
   position: relative;
 }
@@ -239,12 +263,12 @@ input, textarea, select {
 /* ---------- Header ---------- */
 
 .gradient-bg {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .app-container {
-  min-height: 100vh;
-  padding: 3rem 1.5rem 2rem;
+  min-height: 100dvh;
+  padding: 3rem 3rem 5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -266,25 +290,50 @@ input, textarea, select {
 }
 
 .header {
-  text-align: center;
-  margin-bottom: 2.5rem;
-  max-width: 800px;
+  text-align: left;
+  width: 100%;
+  max-width: 1100px;
+  margin-bottom: 2.75rem;
   position: relative;
-  z-index: 1;
+  z-index: var(--z-base);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "mark title" ". lede";
+  align-items: center;
+  column-gap: 1rem;
+  row-gap: 0.5rem;
+}
+
+.header-icon-container { grid-area: mark; }
+.header h1 { grid-area: title; }
+.header > p { grid-area: lede; }
+
+/* The lede hangs off the wordmark rather than sitting under a centred stack,
+   and stops at a readable measure instead of running the full width. */
+.header > p {
+  max-width: 58ch;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .header {
+    grid-template-columns: auto 1fr;
+    column-gap: 0.75rem;
+  }
 }
 
 .header-icon-container {
   display: inline-flex;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  border-radius: 1.25rem;
+  padding: 0.6rem;
+  margin-bottom: 0;
+  border-radius: var(--radius-sm);
 }
 
 .header-icon-container::before {
   content: '';
   position: absolute;
   inset: -20%;
-  background: conic-gradient(from 0deg, transparent, rgba(59, 130, 246, 0.35), transparent 50%);
+  background: conic-gradient(from 0deg, transparent, color-mix(in srgb, var(--primary) 35%, transparent), transparent 50%);
   border-radius: 50%;
   animation: spinSlow 6s linear infinite;
   z-index: -1;
@@ -299,7 +348,7 @@ input, textarea, select {
   width: 2.75rem;
   height: 2.75rem;
   color: var(--primary);
-  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.7));
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--primary) 70%, transparent));
 }
 
 .header h1 {
@@ -310,11 +359,8 @@ input, textarea, select {
 }
 
 .gradient-text {
-  background: linear-gradient(120deg, #60a5fa, #c084fc, #f472b6, #60a5fa);
-  background-size: 250% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text-secondary);
+  font-weight: 400;
   animation: shine 6s linear infinite;
 }
 
@@ -382,8 +428,8 @@ input, textarea, select {
   gap: 0.9rem;
   padding: 1rem 1.25rem;
   margin-bottom: 1.5rem;
-  border: 1px solid rgba(96, 165, 250, 0.22);
-  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
   position: relative;
 }
 
@@ -395,8 +441,8 @@ input, textarea, select {
   height: 2rem;
   border-radius: var(--radius-control);
   flex-shrink: 0;
-  background: rgba(96, 165, 250, 0.14);
-  border: 1px solid rgba(96, 165, 250, 0.24);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, transparent);
 }
 
 .announcement-icon svg {
@@ -480,7 +526,7 @@ input, textarea, select {
 /* ---------- Buttons ---------- */
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-strong), #7c8cf8);
+  background: linear-gradient(135deg, var(--primary-strong), var(--primary));
   color: var(--primary-foreground);
   min-height: var(--control-h);
   padding: 0.45rem 1.2rem;
@@ -499,7 +545,7 @@ input, textarea, select {
 .btn-primary:hover {
   transform: translateY(-1px);
   filter: brightness(1.1);
-  box-shadow: 0 6px 22px 0 rgba(59, 130, 246, 0.55), inset 0 1px 0 rgba(var(--sheen), 0.3);
+  box-shadow: 0 6px 22px 0 color-mix(in srgb, var(--primary) 55%, transparent), inset 0 1px 0 rgba(var(--sheen), 0.3);
 }
 
 .btn-primary:active {
@@ -563,16 +609,16 @@ input, textarea, select {
 
 /* Not an error, just unmistakable: the filenames depend on it. */
 .text-input.needed {
-  border-color: rgba(251, 191, 36, 0.45);
-  background: rgba(251, 191, 36, 0.06);
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+  background: color-mix(in srgb, var(--warning) 6%, transparent);
 }
 
 .text-input:focus,
 .select-input:focus,
 .paste-textarea:focus {
   outline: none;
-  border-color: rgba(96, 165, 250, 0.55);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
 }
 
 .select-input option {
@@ -654,9 +700,9 @@ input, textarea, select {
 }
 
 .segment-btn.active {
-  background: linear-gradient(135deg, var(--primary-strong), #7c8cf8);
+  background: linear-gradient(135deg, var(--primary-strong), var(--primary));
   color: var(--primary-foreground);
-  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--primary) 40%, transparent);
 }
 
 .segmented-control.compact {
@@ -706,10 +752,10 @@ input, textarea, select {
 }
 
 .keyword-chip.active {
-  border-color: rgba(96, 165, 250, 0.6);
-  background: rgba(59, 130, 246, 0.18);
+  border-color: color-mix(in srgb, var(--primary) 60%, transparent);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
   color: var(--primary);
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
 /* ---------- Dropzone ---------- */
@@ -756,21 +802,21 @@ input, textarea, select {
 }
 
 .dropzone-area:hover {
-  border-color: rgba(96, 165, 250, 0.5);
-  background: rgba(59, 130, 246, 0.06);
-  box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.3);
+  border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  box-shadow: 0 10px 30px -10px color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .dropzone-area.dragging {
   border-color: var(--primary);
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
   transform: scale(1.01);
-  box-shadow: 0 0 40px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--primary) 35%, transparent);
 }
 
 .dropzone-icon-bg {
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
   padding: 1rem;
   border-radius: 50%;
   margin-bottom: 1.25rem;
@@ -817,9 +863,9 @@ input, textarea, select {
   flex-wrap: wrap;
   margin-top: 0.85rem;
   padding: 0.7rem 0.8rem;
-  border: 1px solid rgba(96, 165, 250, 0.25);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
   border-radius: 0.55rem;
-  background: rgba(96, 165, 250, 0.07);
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
 }
 
 .media-preview audio {
@@ -922,7 +968,7 @@ input, textarea, select {
 }
 
 .icon-btn:hover {
-  background: rgba(248, 113, 113, 0.12);
+  background: color-mix(in srgb, var(--destructive) 12%, transparent);
   color: var(--destructive);
 }
 
@@ -996,7 +1042,7 @@ input, textarea, select {
 .drop-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-modal);
   background: rgba(var(--ink), 0.75);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -1013,13 +1059,13 @@ input, textarea, select {
   align-items: center;
   gap: 1rem;
   padding: 3rem 4rem;
-  border: 2px dashed rgba(96, 165, 250, 0.6);
+  border: 2px dashed color-mix(in srgb, var(--primary) 60%, transparent);
   border-radius: 1.5rem;
-  background: rgba(59, 130, 246, 0.08);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
   font-size: 1.3rem;
   font-weight: 600;
   font-family: var(--font-heading);
-  box-shadow: 0 0 60px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 60px color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
 .drop-overlay-icon {
@@ -1032,8 +1078,8 @@ input, textarea, select {
 .error-message {
   margin-top: 1.5rem;
   padding: 1rem;
-  background: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.3);
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--destructive) 30%, transparent);
   color: var(--destructive);
   border-radius: var(--radius);
   text-align: center;
@@ -1059,9 +1105,9 @@ input, textarea, select {
   font-size: 0.72rem;
   letter-spacing: 0.03em;
   border-radius: 9999px;
-  background: rgba(59, 130, 246, 0.15);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
   color: var(--primary);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
   cursor: pointer;
   appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
@@ -1071,15 +1117,15 @@ input, textarea, select {
   background-repeat: no-repeat;
 }
 
-.header-mode:hover { background-color: rgba(59, 130, 246, 0.25); }
+.header-mode:hover { background-color: color-mix(in srgb, var(--primary) 25%, transparent); }
 
 .header-mode.accent {
-  background-color: rgba(168, 85, 247, 0.15);
+  background-color: color-mix(in srgb, var(--primary) 15%, transparent);
   color: var(--accent);
-  border-color: rgba(168, 85, 247, 0.3);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
-.header-mode.accent:hover { background-color: rgba(168, 85, 247, 0.25); }
+.header-mode.accent:hover { background-color: color-mix(in srgb, var(--primary) 25%, transparent); }
 
 .header-mode option {
   background: var(--surface-solid);
@@ -1114,33 +1160,33 @@ input, textarea, select {
 }
 
 .badge.primary {
-  background: rgba(59, 130, 246, 0.15);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
   color: var(--primary);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .badge.accent {
-  background: rgba(168, 85, 247, 0.15);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
   color: var(--accent);
-  border: 1px solid rgba(168, 85, 247, 0.3);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .badge.diag {
-  background: rgba(245, 158, 11, 0.12);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
   color: var(--warning);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
 }
 
 .badge.destructive {
-  background: rgba(248, 113, 113, 0.12);
+  background: color-mix(in srgb, var(--destructive) 12%, transparent);
   color: var(--destructive);
-  border: 1px solid rgba(248, 113, 113, 0.3);
+  border: 1px solid color-mix(in srgb, var(--destructive) 30%, transparent);
 }
 
 .badge.success {
-  background: rgba(52, 211, 153, 0.12);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
   color: var(--success);
-  border: 1px solid rgba(52, 211, 153, 0.3);
+  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
 }
 
 /* Per-agent identity color, driven by --agent-h set inline */
@@ -1191,14 +1237,14 @@ input, textarea, select {
   display: flex;
   align-items: center;
   gap: 1rem;
-  border: 1px solid rgba(248, 113, 113, 0.4);
-  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid color-mix(in srgb, var(--destructive) 40%, transparent);
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
 }
 
 /* Amber for something to look at, red stays for something actually wrong. */
 .warning-banner.info {
-  border-color: rgba(251, 191, 36, 0.35);
-  background: rgba(251, 191, 36, 0.07);
+  border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+  background: color-mix(in srgb, var(--warning) 7%, transparent);
 }
 
 .warning-banner.info .icon { color: var(--warning); }
@@ -1374,10 +1420,7 @@ input, textarea, select {
   font-family: var(--font-heading);
   font-size: 1.35rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #60a5fa, #c084fc);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--primary);
   line-height: 1.1;
 }
 
@@ -1442,10 +1485,7 @@ input, textarea, select {
   font-size: 2rem;
   font-weight: 700;
   font-family: var(--font-heading);
-  background: linear-gradient(135deg, #60a5fa, #c084fc);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--primary);
 }
 
 .stat-label {
@@ -1610,7 +1650,10 @@ input, textarea, select {
 
 .output-textarea {
   width: 100%;
-  height: 380px;
+  height: auto;
+  min-height: 8rem;
+  max-height: 24rem;
+  field-sizing: content;
   background: transparent;
   color: var(--foreground);
   border: none;
@@ -1623,7 +1666,6 @@ input, textarea, select {
 
 .output-textarea:focus {
   outline: none;
-  border-color: rgba(96, 165, 250, 0.4);
 }
 
 /* ---------- Interactive function review ---------- */
@@ -1655,7 +1697,9 @@ input, textarea, select {
 }
 
 .summary-review {
-  height: 380px;
+  height: auto;
+  min-height: 0;
+  max-height: 24rem;
   overflow-y: auto;
   background: transparent;
   border: none;
@@ -1683,8 +1727,9 @@ input, textarea, select {
 
 .review-fn {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.5rem;
   padding: 0.15rem 0.5rem;
   margin: 0 -0.25rem;
   border-radius: 0.4rem;
@@ -1697,13 +1742,13 @@ input, textarea, select {
 }
 
 .review-fn.correct {
-  background: rgba(52, 211, 153, 0.08);
-  border-color: rgba(52, 211, 153, 0.25);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+  border-color: color-mix(in srgb, var(--success) 25%, transparent);
 }
 
 .review-fn.incorrect {
-  background: rgba(248, 113, 113, 0.08);
-  border-color: rgba(248, 113, 113, 0.25);
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  border-color: color-mix(in srgb, var(--destructive) 25%, transparent);
 }
 
 .review-fn-num {
@@ -1714,12 +1759,14 @@ input, textarea, select {
 .review-fn-name {
   color: var(--primary-soft);
   font-weight: 600;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .review-fn-suffix {
   color: var(--text-muted);
-  flex: 1;
   min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .review-fn.correct .review-fn-suffix { color: var(--success); }
@@ -1741,19 +1788,19 @@ input, textarea, select {
   transition: all 0.15s ease;
 }
 
-.review-btn.ok:hover { color: var(--success); border-color: rgba(52, 211, 153, 0.5); }
-.review-btn.bad:hover { color: var(--destructive); border-color: rgba(248, 113, 113, 0.5); }
+.review-btn.ok:hover { color: var(--success); border-color: color-mix(in srgb, var(--success) 50%, transparent); }
+.review-btn.bad:hover { color: var(--destructive); border-color: color-mix(in srgb, var(--destructive) 50%, transparent); }
 
 .review-btn.ok.active {
-  background: rgba(52, 211, 153, 0.2);
+  background: color-mix(in srgb, var(--success) 20%, transparent);
   color: var(--success);
-  border-color: rgba(52, 211, 153, 0.6);
+  border-color: color-mix(in srgb, var(--success) 60%, transparent);
 }
 
 .review-btn.bad.active {
-  background: rgba(248, 113, 113, 0.2);
+  background: color-mix(in srgb, var(--destructive) 20%, transparent);
   color: var(--destructive);
-  border-color: rgba(248, 113, 113, 0.6);
+  border-color: color-mix(in srgb, var(--destructive) 60%, transparent);
 }
 
 /* Inline review controls on timeline rows */
@@ -1776,8 +1823,8 @@ input, textarea, select {
   border-radius: var(--radius-sm);
 }
 
-.timeline-row.review-correct { background: rgba(52, 211, 153, 0.06); }
-.timeline-row.review-incorrect { background: rgba(248, 113, 113, 0.06); }
+.timeline-row.review-correct { background: color-mix(in srgb, var(--success) 6%, transparent); }
+.timeline-row.review-incorrect { background: color-mix(in srgb, var(--destructive) 6%, transparent); }
 
 .tool-review-suffix {
   font-family: var(--font-mono);
@@ -1837,8 +1884,8 @@ input, textarea, select {
   flex: 1;
   min-height: 2.4rem;
   resize: vertical;
-  background: rgba(245, 158, 11, 0.05);
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: color-mix(in srgb, var(--warning) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.7rem;
   color: var(--foreground);
@@ -1854,8 +1901,8 @@ input, textarea, select {
 
 .note-textarea:focus {
   outline: none;
-  border-color: rgba(245, 158, 11, 0.5);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+  border-color: color-mix(in srgb, var(--warning) 50%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning) 12%, transparent);
 }
 
 /* ---------- Reference data panel ---------- */
@@ -1945,8 +1992,8 @@ input, textarea, select {
 }
 
 .reference-tab.active {
-  background: rgba(59, 130, 246, 0.16);
-  border-color: rgba(96, 165, 250, 0.5);
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 50%, transparent);
   color: var(--primary);
 }
 
@@ -1960,7 +2007,7 @@ input, textarea, select {
 }
 
 .reference-tab.active .reference-tab-count {
-  background: rgba(96, 165, 250, 0.25);
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
   color: var(--primary);
 }
 
@@ -2062,7 +2109,7 @@ input, textarea, select {
 .ref-detail-row td {
   white-space: normal;
   max-width: none;
-  background: rgba(59, 130, 246, 0.05);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
   padding: 0.75rem 1rem;
 }
 
@@ -2125,7 +2172,7 @@ input, textarea, select {
 }
 
 @keyframes refFlash {
-  0% { background: rgba(96, 165, 250, 0.35); }
+  0% { background: color-mix(in srgb, var(--primary) 35%, transparent); }
   100% { background: transparent; }
 }
 
@@ -2157,8 +2204,8 @@ input, textarea, select {
   gap: 0.4rem;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  border: 1px solid rgba(96, 165, 250, 0.35);
-  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
   color: var(--primary-soft);
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -2166,8 +2213,8 @@ input, textarea, select {
 }
 
 .fixture-chip:hover {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(96, 165, 250, 0.6);
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 60%, transparent);
 }
 
 .fixture-chip-block {
@@ -2228,7 +2275,7 @@ input, textarea, select {
   cursor: col-resize;
   display: flex;
   justify-content: center;
-  z-index: 3;
+  z-index: calc(var(--z-base) + 2);
 }
 
 .audio-handle-bar {
@@ -2270,7 +2317,7 @@ input, textarea, select {
   margin-left: -8px;
   display: flex;
   justify-content: center;
-  z-index: 4;
+  z-index: calc(var(--z-base) + 3);
   /* Shows where playback is; it is not something to grab. */
   pointer-events: none;
 }
@@ -2280,7 +2327,7 @@ input, textarea, select {
   width: 3px;
   height: 100%;
   background: var(--warning);
-  box-shadow: 0 0 8px rgba(251, 191, 36, 0.7), 0 0 0 1px rgba(var(--ink), 0.7);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--warning) 70%, transparent), 0 0 0 1px rgba(var(--ink), 0.7);
 }
 
 .audio-cursor-grip {
@@ -2383,12 +2430,12 @@ input, textarea, select {
 
 .trim-side .btn-secondary.snap {
   margin-left: auto;
-  border-color: rgba(251, 191, 36, 0.35);
+  border-color: color-mix(in srgb, var(--warning) 35%, transparent);
   color: var(--warning);
 }
 
 .trim-side .btn-secondary.snap:hover {
-  background: rgba(251, 191, 36, 0.12);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
 }
 
 .audio-actions {
@@ -2426,8 +2473,8 @@ input, textarea, select {
 }
 
 .audio-recorder.live {
-  border-color: rgba(248, 113, 113, 0.35);
-  background: rgba(248, 113, 113, 0.06);
+  border-color: color-mix(in srgb, var(--destructive) 35%, transparent);
+  background: color-mix(in srgb, var(--destructive) 6%, transparent);
 }
 
 .recorder-status {
@@ -2457,8 +2504,8 @@ input, textarea, select {
   flex-wrap: wrap;
   padding: 0.7rem 0.8rem;
   border-radius: 0.55rem;
-  border: 1px solid rgba(96, 165, 250, 0.35);
-  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
   font-size: 0.82rem;
   color: var(--text-secondary);
 }
@@ -2495,8 +2542,8 @@ input, textarea, select {
   gap: 0.5rem;
   padding: 0.6rem 0.7rem;
   border-radius: 0.5rem;
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
   font-size: 0.8rem;
   line-height: 1.45;
   color: var(--text-secondary);
@@ -2552,7 +2599,7 @@ input, textarea, select {
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--warning);
-  background: rgba(251, 191, 36, 0.12);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
   border-radius: 0.3rem;
   padding: 0.05rem 0.35rem;
   white-space: nowrap;
@@ -2662,7 +2709,7 @@ input, textarea, select {
 .meter-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #60a5fa, #c084fc);
+  background: linear-gradient(90deg, var(--primary), var(--primary));
   transition: width 0.06s linear;
 }
 
@@ -2699,17 +2746,18 @@ input, textarea, select {
   border-top: 1px solid var(--border-glass);
 }
 
+/* Not a pill. A plain flagged label, set in the apparatus voice. */
 .beta-tag {
   margin-left: 0.5rem;
   padding: 0.05rem 0.4rem;
-  border-radius: 999px;
+  border-radius: 3px;
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   vertical-align: middle;
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
   color: var(--warning);
 }
 
@@ -2754,14 +2802,14 @@ input, textarea, select {
 }
 
 .scenario-verdict.ok {
-  background: rgba(52, 211, 153, 0.1);
-  border-color: rgba(52, 211, 153, 0.3);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
   color: var(--success);
 }
 
 .scenario-verdict.warn {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: rgba(245, 158, 11, 0.3);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  border-color: color-mix(in srgb, var(--warning) 30%, transparent);
   color: var(--warning);
 }
 
@@ -2802,9 +2850,9 @@ input, textarea, select {
   row-gap: 0.3rem;
 }
 
-.scenario-item.matched { background: rgba(52, 211, 153, 0.07); border-color: rgba(52, 211, 153, 0.2); }
-.scenario-item.missing { background: rgba(248, 113, 113, 0.07); border-color: rgba(248, 113, 113, 0.2); }
-.scenario-item.extra { background: rgba(245, 158, 11, 0.07); border-color: rgba(245, 158, 11, 0.2); }
+.scenario-item.matched { background: color-mix(in srgb, var(--success) 7%, transparent); border-color: color-mix(in srgb, var(--success) 20%, transparent); }
+.scenario-item.missing { background: color-mix(in srgb, var(--destructive) 7%, transparent); border-color: color-mix(in srgb, var(--destructive) 20%, transparent); }
+.scenario-item.extra { background: color-mix(in srgb, var(--warning) 7%, transparent); border-color: color-mix(in srgb, var(--warning) 20%, transparent); }
 .scenario-item.optional { background: rgba(var(--haze), 0.05); border-color: rgba(var(--haze), 0.15); }
 
 .scenario-item-icon.opt {
@@ -2938,7 +2986,7 @@ input, textarea, select {
   flex-wrap: wrap;
   position: sticky;
   top: 0.75rem;
-  z-index: 30;
+  z-index: var(--z-sticky);
 }
 
 .filter-bar-label {
@@ -2996,7 +3044,7 @@ input, textarea, select {
   bottom: 2rem;
   left: 0;
   width: 2px;
-  background: linear-gradient(to bottom, transparent, rgba(59, 130, 246, 0.5), rgba(168, 85, 247, 0.5), transparent);
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--primary) 50%, transparent), color-mix(in srgb, var(--primary) 50%, transparent), transparent);
   border-radius: 2px;
 }
 
@@ -3038,7 +3086,7 @@ input, textarea, select {
 }
 
 @keyframes flashRow {
-  0% { background: rgba(96, 165, 250, 0.2); }
+  0% { background: color-mix(in srgb, var(--primary) 20%, transparent); }
   100% { background: transparent; }
 }
 
@@ -3247,49 +3295,235 @@ input, textarea, select {
   }
 }
 
-/* ---------- Theme toggle ---------- */
+/* ---------- Theme control ---------- */
 
 .theme-toggle {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  z-index: 60;
+  z-index: var(--z-overlay);
   display: flex;
-  gap: 0.15rem;
-  padding: 0.2rem;
-  border-radius: 999px;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem 0.3rem 0.7rem;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border-glass);
   background: var(--bg-glass);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--glass-edge), var(--shadow-card);
 }
 
-.theme-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
-  border-radius: 999px;
+.theme-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.theme-btn svg {
-  width: 0.95rem;
-  height: 0.95rem;
-}
-
-.theme-btn:hover {
+.theme-select {
+  appearance: none;
+  border: 0;
+  background: transparent;
   color: var(--foreground);
-  background: rgba(var(--sheen), 0.08);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.15rem 1.1rem 0.15rem 0.3rem;
+  border-radius: 4px;
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 0.35rem center, right 0.1rem center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
 }
 
-.theme-btn.active {
-  color: var(--primary);
-  background: rgba(var(--sheen), 0.1);
+.theme-select option {
+  background: var(--surface-solid);
+  color: var(--foreground);
 }
 
 @media (max-width: 640px) {
   .theme-toggle { top: 0.5rem; right: 0.5rem; }
+  .theme-label { display: none; }
+}
+
+/* ---------- Texture ---------- */
+
+/* Fixed grain over everything. Flat vector surfaces read sterile; a little
+   noise gives the ground a material. Non-interactive and cheap: one tiled
+   SVG, no repaint, no layout. */
+.app-container::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-base);
+  pointer-events: none;
+  opacity: 0.28;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+:root[data-theme="light"] .app-container::after {
+  opacity: 0.28;
+  mix-blend-mode: multiply;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-container::after { display: none; }
+}
+
+/* ---------- Type polish ---------- */
+
+/* Headings should not leave a single word stranded on the last line. */
+h1, h2, h3, h4, .panel-title, .dropzone-title {
+  text-wrap: balance;
+}
+
+p, .message-content, .mode-selector-hint {
+  text-wrap: pretty;
+}
+
+/* A review tool is columns of figures: they have to line up. */
+.timeline-time, .audio-time, .transport-time, .fact-mono, .fact-value,
+.review-progress, .tool-line-count, .ref-count, .meter-value, .stat-value,
+.data-block, .raw-data-block, .export-card-filename, .line-no, .badge {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Skip link ---------- */
+
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: var(--z-modal);
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-control);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+  transition: top 0.16s ease;
+}
+
+.skip-link:focus-visible { top: 0.75rem; }
+
+
+/* Emphasis by weight, not by a painted gradient. */
+.gradient-text {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+
+/* ---------- Motion and pressed feedback ---------- */
+
+html { scroll-behavior: smooth; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Every control that can be pressed says so. Transform only, so none of this
+   touches layout. */
+.btn-primary:active,
+.btn-secondary:active,
+.btn-icon:active,
+.segment-btn:active,
+.review-btn:active,
+.keyword-chip:active,
+.theme-select:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.btn-primary,
+.btn-secondary,
+.segment-btn,
+.review-btn,
+.keyword-chip {
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease,
+              box-shadow 0.2s ease, transform 0.12s ease;
+}
+
+/* Optical, not mathematical: the eye reads an evenly padded block as
+   bottom-heavy, so the lower stop is a little larger. */
+.panel,
+.mode-selector,
+.session-header {
+  padding-bottom: calc(1.5rem + 2px);
+}
+
+/* Variable-height cards, not a flexbox row forced to the tallest. */
+.output-grid { align-items: start; }
+
+
+/* ---------- Broken grid ---------- */
+
+/* Panels no longer share one column edge. Each band takes a different width
+   and offset, so the eye reads a composition rather than a stack of equal
+   rectangles. Everything collapses back to full width before it can crowd
+   the recording scene. */
+@media (min-width: 901px) {
+  /* The reading column is wider than the scannable one. An even split gave
+     the transcript the same room as a five-item list. */
+  .output-grid {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 7fr);
+    gap: 1.75rem;
+  }
+
+  /* Inset from the right: the audio tool is optional, so it sits back. */
+  .audio-panel {
+    width: 88%;
+    margin-right: auto;
+  }
+
+  /* Bleeds left, past the column, because it is the widest judgement on the
+     page and should not sit inside the same frame as the fields above it. */
+  .scenario-panel {
+    width: calc(100% + 2.5rem);
+    margin-left: -2.5rem;
+  }
+
+  /* Tucks under the panel above rather than starting a new band. */
+  .filter-bar {
+    position: relative;
+    z-index: calc(var(--z-base) + 1);
+    margin-top: -1.5rem;
+    width: 94%;
+    margin-left: auto;
+  }
+
+  /* The timeline is the point of the page: it runs wider than everything. */
+  .timeline-list {
+    width: calc(100% + 2.5rem);
+    margin-left: -1.25rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  /* The summary sits slightly high against the transcript beside it. */
+  .output-grid > .summary-box:first-child {
+    margin-top: -0.75rem;
+  }
+}
+
+/* More air between bands. Dense inside a row, generous between sections. */
+.session-header,
+.audio-panel,
+.export-section,
+.scenario-panel {
+  margin-bottom: 2rem;
+}
+
+.output-grid { margin-bottom: 2rem; }
+
+@media (max-width: 900px) {
+  .app-container { padding: 2rem 1.25rem 4rem; }
 }

@@ -68,6 +68,7 @@ function App() {
 
   return (
     <div className="gradient-bg app-container">
+      <a className="skip-link" href="#main">Skip to content</a>
       <ThemeToggle />
 
       <header className={`header animate-fade-in ${timelineData ? 'compact' : ''}`}>
@@ -79,12 +80,12 @@ function App() {
         </h1>
         {!timelineData && (
           <p>
-            Upload your JSON files to visualize functions, responses and transfers!
+            Load an agent session to step through its transcript, tool calls and transfers.
           </p>
         )}
       </header>
 
-      <main className="main-content">
+      <main className="main-content" id="main">
         <Announcement />
         {!timelineData ? (
           <Dropzone onFileParsed={handleFileParsed} />
@@ -102,7 +103,7 @@ function App() {
       </main>
       
       <footer className="footer">
-        <p>Single & Multi Agent Support</p>
+        <p>Single and multi agent support</p>
       </footer>
 
       <Analytics />

@@ -318,8 +318,8 @@ export function TimelineView({
   mediaFile,
 }: TimelineViewProps) {
   const [showKeywords, setShowKeywords] = useState(false);
-  const [copySummaryLabel, copySummary] = useCopyToClipboard('Copy Summary');
-  const [copyTranscriptLabel, copyTranscript] = useCopyToClipboard('Copy Transcript');
+  const [copySummaryLabel, copySummary] = useCopyToClipboard('Copy summary');
+  const [copyTranscriptLabel, copyTranscript] = useCopyToClipboard('Copy transcript');
   const [copySessionLabel, copySession] = useCopyToClipboard('Copy');
   const [copyDurationLabel, copyDuration] = useCopyToClipboard('Copy');
 
@@ -476,7 +476,7 @@ export function TimelineView({
         <div className="session-header-top">
           <h2 className="timeline-title">
             <Activity className="timeline-title-icon" />
-            Session Analysis
+            Session analysis
           </h2>
           {onModeChange ? (
             <select
@@ -501,7 +501,7 @@ export function TimelineView({
             </button>
           )}
           <button onClick={onReset} className="btn-secondary header-reset">
-            Upload New File
+            Upload a new file
           </button>
         </div>
 
@@ -566,7 +566,7 @@ export function TimelineView({
         <div className="fact">
           <MessageSquare className="fact-icon" />
           <span className="fact-value">{stats.messages}</span>
-          <span className="fact-label">Transcript Turns</span>
+          <span className="fact-label">Transcript turns</span>
         </div>
         <div className="fact">
           <Braces className="fact-icon" />
@@ -622,12 +622,12 @@ export function TimelineView({
           <div className="export-controls">
             <h3 className="panel-title">
               <Download className="icon" />
-              Export Options
+              Export options
             </h3>
 
             <div className="export-options-row">
               <div className="export-option">
-                <span className="export-option-label">Agent Target:</span>
+                <span className="export-option-label">Agent target:</span>
                 <div className="segmented-control compact">
                   {(['A', 'B'] as const).map(agent => (
                     <button
@@ -642,7 +642,7 @@ export function TimelineView({
               </div>
 
               <div className="export-option">
-                <span className="export-option-label">Task Number:</span>
+                <span className="export-option-label">Task number:</span>
                 <input
                   type="text"
                   value={taskNumber}
@@ -654,7 +654,7 @@ export function TimelineView({
               </div>
 
               <div className="export-option">
-                <span className="export-option-label">Task Type:</span>
+                <span className="export-option-label">Task type:</span>
                 <select
                   value={clarity}
                   onChange={(e) => setClarity(e.target.value as 'Clear' | 'Noisy')}
@@ -672,13 +672,13 @@ export function TimelineView({
             className="btn-primary"
           >
             <Download className="btn-icon" />
-            Download All
+            Download all
           </button>
         </div>
 
         <div className="export-cards">
           <div className="export-card">
-            <span className="export-card-title">Raw JSON File</span>
+            <span className="export-card-title">Raw JSON file</span>
             <span className="export-card-filename">{summaryFileName}</span>
             <button onClick={handleDownloadJson} className="btn-secondary">
               <Download className="btn-icon" />
@@ -687,22 +687,22 @@ export function TimelineView({
           </div>
 
           <div className="export-card">
-            <span className="export-card-title">Transcript Text</span>
+            <span className="export-card-title">Transcript text</span>
             <span className="export-card-filename">{transcriptFileName}</span>
             <button onClick={handleDownloadTranscript} className="btn-secondary">
               <Download className="btn-icon" />
-              Download Transcript
+              Download transcript
             </button>
           </div>
 
           <div className="export-card">
-            <span className="export-card-title">Audio File</span>
+            <span className="export-card-title">Audio file</span>
             <span className="export-card-filename">
               {audioReady ? audioFileName : 'Load a recording in the Audio panel above'}
             </span>
             <button onClick={handleDownloadAudio} className="btn-secondary" disabled={!audioReady || audioProgress !== null}>
               <Download className="btn-icon" />
-              {audioProgress !== null ? `Converting ${Math.round(audioProgress * 100)}%` : 'Download Audio'}
+              {audioProgress !== null ? `Converting ${Math.round(audioProgress * 100)}%` : 'Download audio'}
             </button>
           </div>
         </div>
@@ -711,7 +711,7 @@ export function TimelineView({
       <div className="output-grid">
         <div className="summary-box glass">
           <div className="summary-box-header">
-            <h3 className="panel-title">Function &amp; Transfer Summary</h3>
+            <h3 className="panel-title">Function &amp; transfer summary</h3>
             <button onClick={() => copySummary(summaryText)} className="btn-secondary">
               <Copy className="btn-icon-sm" />
               {copySummaryLabel}
@@ -789,11 +789,11 @@ export function TimelineView({
         <span className="filter-bar-label">Filters:</span>
         <label className="checkbox-label">
           <input type="checkbox" checked={showTranscripts} onChange={e => setShowTranscripts(e.target.checked)} />
-          Show Transcripts
+          Show transcripts
         </label>
         <label className="checkbox-label">
           <input type="checkbox" checked={showFunctions} onChange={e => setShowFunctions(e.target.checked)} />
-          Show Functions &amp; Tools
+          Show functions &amp; tools
         </label>
         {data.agentType === 'prod multi agent' && (
           <label className="checkbox-label">

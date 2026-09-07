@@ -150,7 +150,7 @@ export function ReferenceDataPanel({ data, focus }: ReferenceDataPanelProps) {
       <button className="reference-header" onClick={() => setOpen(o => !o)}>
         <Database className="reference-icon" />
         <div className="reference-title-group">
-          <h3 className="panel-title">Data Fixture</h3>
+          <h3 className="panel-title">Data fixture</h3>
           <span className="reference-subtitle">Data output by the model</span>
         </div>
         <ChevronDown className={`reference-chevron ${open ? 'open' : ''}`} />

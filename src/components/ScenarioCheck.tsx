@@ -164,7 +164,7 @@ export function ScenarioCheck({ agentType, events, scenario }: ScenarioCheckProp
         <ClipboardCheck className="reference-icon" />
         <div className="reference-title-group">
           <h3 className="panel-title">
-            Scenario Check
+            Scenario check
             <span className="beta-tag">beta</span>
           </h3>
           <span className="reference-subtitle">Compare executed functions against the guideline's expected calls</span>

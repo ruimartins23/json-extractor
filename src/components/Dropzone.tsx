@@ -237,7 +237,7 @@ export function Dropzone({ onFileParsed }: DropzoneProps) {
       <div className="mode-selector glass animate-fade-in">
         <div className="mode-selector-header">
           <Settings2 className="btn-icon" style={{ color: 'var(--primary)' }} />
-          <h3 className="panel-title">Select Target Environment</h3>
+          <h3 className="panel-title">Select target environment</h3>
         </div>
         <p className="mode-selector-hint">
           Choose your environment to filter exactly which tool structures to look for.
@@ -256,7 +256,7 @@ export function Dropzone({ onFileParsed }: DropzoneProps) {
 
         <div className="config-grid">
           <div className="config-field">
-            <label className="field-label">Function Tool Keyword</label>
+            <label className="field-label">Function tool keyword</label>
             <input
               type="text"
               value={functionKeyword}
@@ -272,7 +272,7 @@ export function Dropzone({ onFileParsed }: DropzoneProps) {
           </div>
           {mode === 'prod multi agent' && (
             <div className="config-field">
-              <label className="field-label">Transfer Tool Keyword</label>
+              <label className="field-label">Transfer tool keyword</label>
               <input
                 type="text"
                 value={transferKeyword}
@@ -284,7 +284,7 @@ export function Dropzone({ onFileParsed }: DropzoneProps) {
           )}
           {mode !== 'pre-prod' && (
             <div className="config-field">
-              <label className="field-label">End Session Tool Keyword</label>
+              <label className="field-label">End session tool keyword</label>
               <input
                 type="text"
                 value={endSessionKeyword}
@@ -310,7 +310,7 @@ export function Dropzone({ onFileParsed }: DropzoneProps) {
             </h3>
           </div>
           <p className="mode-selector-hint">
-            Pick the scenario you are rating so the Scenario Check can compare the expected calls.
+            Pick the scenario you are rating so the scenario check can compare the expected calls.
           </p>
           <div className="config-grid">
             <div className="config-field">
@@ -417,7 +417,7 @@ export function Dropzone({ onFileParsed }: DropzoneProps) {
           <div className="dropzone-icon-bg">
             <Upload className="dropzone-icon" />
           </div>
-          <h3 className="dropzone-title">2. Upload JSON File</h3>
+          <h3 className="dropzone-title">2. Upload the JSON</h3>
           <p className="dropzone-subtitle">
             Drag and drop your .txt or .json file anywhere on this page
           </p>
