@@ -1298,13 +1298,13 @@ input, textarea, select {
 }
 
 .flow-segment {
-  flex-basis: 0;
-  min-width: 70px;
+  flex-basis: auto;
+  min-width: 104px;
   padding: 0.45rem 0.7rem;
   border-radius: 0.5rem;
-  background: hsl(var(--agent-h) 75% 62% / 0.12);
-  border: 1px solid hsl(var(--agent-h) 75% 62% / 0.35);
-  color: hsl(var(--agent-h) 90% 76%);
+  background: hsl(var(--agent-h) var(--agent-fill-s) var(--agent-fill-l) / 0.16);
+  border: 1px solid hsl(var(--agent-h) var(--agent-fill-s) var(--agent-fill-l) / 0.4);
+  color: hsl(var(--agent-h) var(--agent-s) var(--agent-l));
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
@@ -3464,53 +3464,19 @@ html { scroll-behavior: smooth; }
 .output-grid { align-items: start; }
 
 
-/* ---------- Broken grid ---------- */
+/* ---------- Column ---------- */
 
-/* Panels no longer share one column edge. Each band takes a different width
-   and offset, so the eye reads a composition rather than a stack of equal
-   rectangles. Everything collapses back to full width before it can crowd
-   the recording scene. */
+/* Every band shares one left and one right edge. An earlier pass gave each
+   panel its own width and offset; with five panels that read as composition,
+   but a real multi-agent session stacks eight or more and the ragged edges
+   just read as misalignment. The asymmetry that earns its place is inside a
+   panel, not on its outer edge. */
 @media (min-width: 901px) {
   /* The reading column is wider than the scannable one. An even split gave
      the transcript the same room as a five-item list. */
   .output-grid {
     grid-template-columns: minmax(0, 6fr) minmax(0, 7fr);
     gap: 1.75rem;
-  }
-
-  /* Inset from the right: the audio tool is optional, so it sits back. */
-  .audio-panel {
-    width: 88%;
-    margin-right: auto;
-  }
-
-  /* Bleeds left, past the column, because it is the widest judgement on the
-     page and should not sit inside the same frame as the fields above it. */
-  .scenario-panel {
-    width: calc(100% + 2.5rem);
-    margin-left: -2.5rem;
-  }
-
-  /* Tucks under the panel above rather than starting a new band. */
-  .filter-bar {
-    position: relative;
-    z-index: calc(var(--z-base) + 1);
-    margin-top: -1.5rem;
-    width: 94%;
-    margin-left: auto;
-  }
-
-  /* The timeline is the point of the page: it runs wider than everything. */
-  .timeline-list {
-    width: calc(100% + 2.5rem);
-    margin-left: -1.25rem;
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
-  }
-
-  /* The summary sits slightly high against the transcript beside it. */
-  .output-grid > .summary-box:first-child {
-    margin-top: -0.75rem;
   }
 }
 

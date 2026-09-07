@@ -46,8 +46,12 @@ function useCopyToClipboard(idleLabel: string): [string, (text: string | undefin
   return [label, copy];
 }
 
-// Stable, distinct hue per agent name so each agent keeps its color across the session
-const AGENT_HUES = [265, 190, 330, 45, 150, 15, 285, 110];
+// Stable hue per agent name, so an agent keeps its colour across the session.
+// Constrained to a warm arc around the accent rather than spread over the whole
+// wheel: the old set ran violet, cyan, pink and lime, which read as a rainbow
+// dropped onto a warm ground. The chip carries the agent's name in text, so
+// hue is a secondary cue and does not need to be maximally separated.
+const AGENT_HUES = [38, 14, 62, 26, 80, 5, 50, 70];
 
 function agentHue(name: string): number {
   let hash = 0;
