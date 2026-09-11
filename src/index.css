@@ -1,59 +1,66 @@
 :root {
-  /* One warm neutral family, tinted consistently. The incumbent mixed cool
-     slate greys with a blue/purple/pink accent field -- the AI fingerprint. */
-  --background: #090806;
-  --foreground: #f2ece0;
-  --text-primary: #f2ece0;
-  --text-secondary: rgba(242, 236, 224, 0.66);
-  --text-muted: rgba(242, 236, 224, 0.46);
+  /* The whole palette derives from these two values. The appearance menu writes
+     them inline on <html>; these are the defaults when nothing is stored. Each
+     derived colour pins its own lightness per theme and caps chroma, so any
+     accent someone picks keeps its contrast and none of them go neon. */
+  --accent-seed: #4a7bd8;
+  --tint: 0.5;
+  --accent-l: 0.76;
 
-  /* ONE accent. Desaturated ochre, ~55% saturation, nowhere near the
-     oversaturated blue it replaces. --accent is an alias, not a second colour. */
-  --primary: #d0a253;
-  --primary-strong: #b8873a;
-  --primary-foreground: #16130d;
-  --primary-glow: rgba(208, 162, 83, 0.28);
+  /* Grounds take a whisper of the accent's hue, scaled by --tint. Chroma follows
+     the accent's own chroma, so a grey accent leaves the grounds truly neutral
+     instead of tinting them toward an arbitrary hue. */
+  --background: oklch(from var(--accent-seed) 0.135 calc(min(c, 0.15) * var(--tint) * 0.1) h);
+  --surface-solid: oklch(from var(--accent-seed) 0.195 calc(min(c, 0.15) * var(--tint) * 0.1) h);
+  --bg-glass: oklch(from var(--accent-seed) 0.205 calc(min(c, 0.15) * var(--tint) * 0.12) h / 0.62);
+  --bg-inset: oklch(from var(--accent-seed) 0.09 calc(min(c, 0.15) * var(--tint) * 0.08) h / 0.55);
+  --bg-glass-muted: oklch(from var(--accent-seed) 0.17 calc(min(c, 0.15) * var(--tint) * 0.1) h / 0.42);
+
+  --foreground: oklch(from var(--accent-seed) 0.955 calc(min(c, 0.15) * var(--tint) * 0.06) h);
+  --text-primary: var(--foreground);
+  --text-secondary: oklch(from var(--accent-seed) 0.955 calc(min(c, 0.15) * var(--tint) * 0.06) h / 0.7);
+  --text-muted: oklch(from var(--accent-seed) 0.955 calc(min(c, 0.15) * var(--tint) * 0.06) h / 0.56);
+  --border-glass: oklch(from var(--accent-seed) 0.955 calc(min(c, 0.15) * var(--tint) * 0.06) h / 0.1);
+  --border-inner: oklch(from var(--accent-seed) 0.955 calc(min(c, 0.15) * var(--tint) * 0.06) h / 0.07);
+
+  /* ONE accent. --accent is an alias, not a second colour. */
+  --primary: oklch(from var(--accent-seed) var(--accent-l) min(c, 0.15) h);
+  --primary-strong: oklch(from var(--accent-seed) calc(var(--accent-l) - 0.08) min(c, 0.15) h);
+  --primary-soft: oklch(from var(--accent-seed) calc(var(--accent-l) + 0.08) min(c, 0.12) h);
+  --primary-foreground: oklch(from var(--accent-seed) 0.18 min(c, 0.03) h);
+  --primary-glow: oklch(from var(--accent-seed) var(--accent-l) min(c, 0.15) h / 0.28);
   --accent: var(--primary);
   --accent-glow: var(--primary-glow);
-  --primary-soft: #e0bd80;
 
-  /* Semantic status stays distinguishable but is pulled down to match. */
-  --destructive: #d1806c;
-  --success: #8fae74;
-  --warning: #d0a253;
-  --success-soft: #a8c48f;
-  --neutral-soft: #a39a89;
-  --surface-solid: #121009;
+  /* Status is semantic, so it holds still whatever palette is chosen. */
+  --success: oklch(0.78 0.12 150);
+  --success-soft: oklch(0.85 0.1 150);
+  --destructive: oklch(0.72 0.14 25);
+  --warning: oklch(0.8 0.13 80);
+  --neutral-soft: oklch(from var(--accent-seed) 0.72 calc(min(c, 0.15) * var(--tint) * 0.1) h);
 
-  --border-glass: rgba(242, 236, 224, 0.10);
-  --border-inner: rgba(242, 236, 224, 0.07);
-  --bg-glass: rgba(22, 20, 15, 0.6);
-  --bg-inset: rgba(3, 3, 2, 0.55);
-  --bg-glass-muted: rgba(16, 14, 11, 0.4);
+  /* Channel triplets for the few rgba() overlays. Neutral, so they sit on any
+     palette; at the alphas they are used at, a tint would not register. */
+  --sheen: 240, 241, 245;
+  --haze: 150, 153, 162;
+  --ink: 4, 4, 6;
+  --shadow: 0, 0, 0;
 
-  --sheen: 242, 236, 224;
-  --haze: 163, 154, 137;
-  --ink: 8, 7, 5;
-  --shadow: 12, 9, 5;
-
-  /* Shadows carry the ground's hue instead of generic black, and the glass
-     gets an inner border plus an inner shadow so the edge reads as refraction
-     rather than a flat blur. */
   --shadow-card: 0 10px 34px rgba(0, 0, 0, 0.6);
-  --glass-edge: inset 0 1px 0 rgba(242, 236, 224, 0.07),
-                inset 0 0 0 1px rgba(242, 236, 224, 0.03),
-                inset 0 -14px 28px -22px rgba(12, 9, 5, 0.7);
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+                inset 0 -14px 28px -22px rgba(0, 0, 0, 0.7);
 
-  --wash-a: rgba(208, 162, 83, 0.10);
-  --wash-b: rgba(208, 162, 83, 0.06);
-  --wash-c: rgba(163, 154, 137, 0.05);
-  --wave-lit: #d0a253;
-  --wave-dim: rgba(163, 154, 137, 0.22);
+  --wash-a: oklch(from var(--accent-seed) var(--accent-l) min(c, 0.15) h / 0.1);
+  --wash-b: oklch(from var(--accent-seed) var(--accent-l) min(c, 0.15) h / 0.06);
+  --wash-c: oklch(from var(--accent-seed) 0.7 calc(min(c, 0.15) * var(--tint) * 0.1) h / 0.05);
+  --wave-lit: var(--primary);
+  --wave-dim: oklch(from var(--accent-seed) 0.7 calc(min(c, 0.15) * var(--tint) * 0.1) h / 0.24);
 
-  --agent-s: 42%;
-  --agent-l: 70%;
-  --agent-fill-s: 36%;
-  --agent-fill-l: 55%;
+  /* Agent chips fan out around the accent's hue at a fixed chroma, so they stay
+     distinguishable on every palette, a grey one included. */
+  --agent-l: 0.8;
+  --agent-fill-l: 0.7;
 
   /* Varied, not uniform: softer on containers, tighter on the things inside. */
   --radius: 1.125rem;
@@ -72,53 +79,50 @@
   --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
-/* Light. Same warm family, same single accent, deepened to hold on paper. */
+/* Light. Same derivation, lightness flipped: the accent deepens to hold on a
+   pale ground, and text runs dark. */
 :root[data-theme="light"] {
-  --background: #f4f1e9;
-  --foreground: #191610;
-  --text-primary: #191610;
-  --text-secondary: rgba(25, 22, 16, 0.70);
-  --text-muted: rgba(25, 22, 16, 0.52);
+  --accent-l: 0.5;
 
-  --primary: #8a6420;
-  --primary-strong: #6f4f16;
-  --primary-foreground: #fffdf8;
-  --primary-glow: rgba(138, 100, 32, 0.22);
-  --primary-soft: #6f4f16;
+  --background: oklch(from var(--accent-seed) 0.972 calc(min(c, 0.15) * var(--tint) * 0.08) h);
+  --surface-solid: oklch(from var(--accent-seed) 0.995 calc(min(c, 0.15) * var(--tint) * 0.03) h);
+  --bg-glass: oklch(from var(--accent-seed) 0.995 calc(min(c, 0.15) * var(--tint) * 0.03) h / 0.76);
+  --bg-inset: oklch(from var(--accent-seed) 0.3 calc(min(c, 0.15) * var(--tint) * 0.1) h / 0.05);
+  --bg-glass-muted: oklch(from var(--accent-seed) 0.99 calc(min(c, 0.15) * var(--tint) * 0.03) h / 0.5);
 
-  --destructive: #a8442f;
-  --success: #4d6b39;
-  --warning: #8a6420;
-  --success-soft: #3d5a2c;
-  --neutral-soft: #5c5445;
-  --surface-solid: #fffdf8;
+  --foreground: oklch(from var(--accent-seed) 0.21 calc(min(c, 0.15) * var(--tint) * 0.1) h);
+  --text-secondary: oklch(from var(--accent-seed) 0.21 calc(min(c, 0.15) * var(--tint) * 0.1) h / 0.74);
+  --text-muted: oklch(from var(--accent-seed) 0.21 calc(min(c, 0.15) * var(--tint) * 0.1) h / 0.64);
+  --border-glass: oklch(from var(--accent-seed) 0.21 calc(min(c, 0.15) * var(--tint) * 0.1) h / 0.12);
+  --border-inner: oklch(from var(--accent-seed) 0.21 calc(min(c, 0.15) * var(--tint) * 0.1) h / 0.06);
 
-  --border-glass: rgba(25, 22, 16, 0.12);
-  --border-inner: rgba(25, 22, 16, 0.06);
-  --bg-glass: rgba(255, 253, 248, 0.72);
-  --bg-inset: rgba(25, 22, 16, 0.045);
-  --bg-glass-muted: rgba(255, 253, 248, 0.45);
+  /* On a pale ground "soft" has to mean darker, not lighter, to stay readable. */
+  --primary-soft: oklch(from var(--accent-seed) calc(var(--accent-l) - 0.07) min(c, 0.14) h);
+  --primary-foreground: oklch(from var(--accent-seed) 0.99 min(c, 0.01) h);
 
-  --sheen: 25, 22, 16;
-  --haze: 92, 84, 69;
-  --ink: 236, 231, 219;
-  --shadow: 60, 48, 28;
+  --success: oklch(0.52 0.12 150);
+  --success-soft: oklch(0.45 0.1 150);
+  --destructive: oklch(0.53 0.16 25);
+  --warning: oklch(0.56 0.12 75);
+  --neutral-soft: oklch(from var(--accent-seed) 0.45 calc(min(c, 0.15) * var(--tint) * 0.1) h);
 
-  --shadow-card: 0 8px 28px rgba(60, 48, 28, 0.10);
+  --sheen: 18, 19, 26;
+  --haze: 100, 103, 114;
+  --ink: 230, 231, 236;
+  --shadow: 16, 18, 30;
+
+  --shadow-card: 0 8px 28px oklch(from var(--accent-seed) 0.3 min(c, 0.08) h / 0.1);
   --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.7),
                 inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-                inset 0 -14px 28px -24px rgba(60, 48, 28, 0.25);
+                inset 0 -14px 28px -24px oklch(from var(--accent-seed) 0.3 min(c, 0.08) h / 0.18);
 
-  --wash-a: rgba(138, 100, 32, 0.07);
-  --wash-b: rgba(138, 100, 32, 0.05);
-  --wash-c: rgba(92, 84, 69, 0.04);
-  --wave-lit: #8a6420;
-  --wave-dim: rgba(92, 84, 69, 0.28);
+  --wash-a: oklch(from var(--accent-seed) var(--accent-l) min(c, 0.15) h / 0.07);
+  --wash-b: oklch(from var(--accent-seed) var(--accent-l) min(c, 0.15) h / 0.05);
+  --wash-c: oklch(from var(--accent-seed) 0.45 calc(min(c, 0.15) * var(--tint) * 0.1) h / 0.04);
+  --wave-dim: oklch(from var(--accent-seed) 0.45 calc(min(c, 0.15) * var(--tint) * 0.1) h / 0.28);
 
-  --agent-s: 40%;
-  --agent-l: 32%;
-  --agent-fill-s: 36%;
-  --agent-fill-l: 42%;
+  --agent-l: 0.45;
+  --agent-fill-l: 0.6;
 }
 
 * {
@@ -418,89 +422,6 @@ input, textarea, select {
   font-size: 0.85rem;
   position: relative;
   z-index: 1;
-}
-
-/* ---------- Announcement banner ---------- */
-
-.announcement {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.9rem;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1.5rem;
-  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
-  background: color-mix(in srgb, var(--primary) 6%, transparent);
-  position: relative;
-}
-
-.announcement-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: var(--radius-control);
-  flex-shrink: 0;
-  background: color-mix(in srgb, var(--primary) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--primary) 24%, transparent);
-}
-
-.announcement-icon svg {
-  width: 1.05rem;
-  height: 1.05rem;
-  color: var(--primary);
-}
-
-.announcement-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.announcement-title {
-  font-size: 0.92rem;
-  margin-bottom: 0.3rem;
-}
-
-.announcement-body p {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  line-height: 1.55;
-  max-width: 78ch;
-}
-
-.announcement-body p + p { margin-top: 0.55rem; }
-
-.announcement-body strong { color: var(--foreground); }
-
-.announcement-ok { color: var(--success); }
-.announcement-bad { color: var(--destructive); }
-
-.announcement-actions {
-  margin-top: 0.7rem;
-}
-
-.announcement-close {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 0.5rem;
-  color: var(--text-muted);
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-.announcement-close:hover {
-  color: var(--foreground);
-  background: rgba(var(--sheen), 0.06);
-}
-
-.announcement-close svg {
-  width: 1.1rem;
-  height: 1.1rem;
 }
 
 /* ---------- Animations ---------- */
@@ -1189,11 +1110,11 @@ input, textarea, select {
   border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
 }
 
-/* Per-agent identity color, driven by --agent-h set inline */
+/* Per-agent identity colour: a slot offset set inline, spread around the accent hue */
 .badge.agent {
-  background: hsl(var(--agent-h) var(--agent-fill-s) var(--agent-fill-l) / 0.13);
-  color: hsl(var(--agent-h) var(--agent-s) var(--agent-l));
-  border: 1px solid hsl(var(--agent-h) var(--agent-fill-s) var(--agent-fill-l) / 0.35);
+  background: oklch(from var(--accent-seed) var(--agent-fill-l) 0.1 calc(h + var(--agent-offset, 0)) / 0.13);
+  color: oklch(from var(--accent-seed) var(--agent-l) 0.11 calc(h + var(--agent-offset, 0)));
+  border: 1px solid oklch(from var(--accent-seed) var(--agent-fill-l) 0.1 calc(h + var(--agent-offset, 0)) / 0.35);
 }
 
 /* ---------- Timeline header / stats ---------- */
@@ -1302,9 +1223,9 @@ input, textarea, select {
   min-width: 104px;
   padding: 0.45rem 0.7rem;
   border-radius: 0.5rem;
-  background: hsl(var(--agent-h) var(--agent-fill-s) var(--agent-fill-l) / 0.16);
-  border: 1px solid hsl(var(--agent-h) var(--agent-fill-s) var(--agent-fill-l) / 0.4);
-  color: hsl(var(--agent-h) var(--agent-s) var(--agent-l));
+  background: oklch(from var(--accent-seed) var(--agent-fill-l) 0.1 calc(h + var(--agent-offset, 0)) / 0.16);
+  border: 1px solid oklch(from var(--accent-seed) var(--agent-fill-l) 0.1 calc(h + var(--agent-offset, 0)) / 0.4);
+  color: oklch(from var(--accent-seed) var(--agent-l) 0.11 calc(h + var(--agent-offset, 0)));
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
@@ -1314,8 +1235,7 @@ input, textarea, select {
 }
 
 .flow-segment:hover {
-  background: hsl(var(--agent-h) 75% 62% / 0.24);
-  box-shadow: 0 0 12px hsl(var(--agent-h) 75% 62% / 0.3);
+  background: oklch(from var(--accent-seed) var(--agent-fill-l) 0.1 calc(h + var(--agent-offset, 0)) / 0.24);
 }
 
 .flow-count {
@@ -2920,9 +2840,9 @@ input, textarea, select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  background: hsl(var(--agent-h) 75% 62% / 0.14);
-  border: 1px solid hsl(var(--agent-h) 75% 62% / 0.35);
-  color: hsl(var(--agent-h) 90% 76%);
+  background: oklch(from var(--accent-seed) var(--agent-fill-l) 0.1 calc(h + var(--agent-offset, 0)) / 0.14);
+  border: 1px solid oklch(from var(--accent-seed) var(--agent-fill-l) 0.1 calc(h + var(--agent-offset, 0)) / 0.35);
+  color: oklch(from var(--accent-seed) var(--agent-l) 0.11 calc(h + var(--agent-offset, 0)));
 }
 
 .scenario-agent-arrow {
@@ -3295,59 +3215,239 @@ input, textarea, select {
   }
 }
 
-/* ---------- Theme control ---------- */
+/* ---------- Appearance ---------- */
 
-.theme-toggle {
+.appearance {
   position: fixed;
   top: 1rem;
   right: 1rem;
   z-index: var(--z-overlay);
-  display: flex;
+}
+
+.appearance-trigger {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.3rem 0.5rem 0.3rem 0.7rem;
+  gap: 0.45rem;
+  height: 2.125rem;
+  padding: 0 0.8rem 0 0.7rem;
   border-radius: var(--radius-control);
   border: 1px solid var(--border-glass);
   background: var(--bg-glass);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: var(--glass-edge), var(--shadow-card);
-}
-
-.theme-label {
-  font-size: 0.7rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.theme-select {
-  appearance: none;
-  border: 0;
-  background: transparent;
   color: var(--foreground);
-  font-family: inherit;
   font-size: 0.8rem;
   font-weight: 500;
-  padding: 0.15rem 1.1rem 0.15rem 0.3rem;
-  border-radius: 4px;
-  cursor: pointer;
-  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
-                    linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position: right 0.35rem center, right 0.1rem center;
-  background-size: 5px 5px, 5px 5px;
-  background-repeat: no-repeat;
+  transition: border-color 0.2s ease, transform 0.12s ease;
 }
 
-.theme-select option {
+.appearance-trigger:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--border-glass)); }
+.appearance-trigger[aria-expanded="true"] { border-color: var(--primary); }
+.appearance-trigger:active { transform: translateY(1px) scale(0.985); }
+
+.appearance-trigger-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  color: var(--primary);
+}
+
+/* Opaque, not glass: it floats over the busiest part of the page, and a
+   translucent panel there would be read through rather than read. */
+.appearance-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: 19rem;
+  max-width: calc(100vw - 1.5rem);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-glass);
   background: var(--surface-solid);
+  box-shadow: var(--glass-edge), var(--shadow-card);
+  transform-origin: top right;
+  animation: appearanceIn 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes appearanceIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+
+.appearance-group {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.appearance-legend,
+.appearance-row-label {
+  display: block;
+  padding: 0;
+  margin-bottom: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Native radios under the paint, so arrow keys and screen readers get a real
+   radio group without any of it being rebuilt by hand. */
+.appearance-segments {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border-glass);
+  background: var(--bg-inset);
+}
+
+.appearance-segment,
+.appearance-swatch { position: relative; }
+
+.appearance-segment input,
+.appearance-swatch input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.appearance-segment span {
+  display: block;
+  padding: 0.35rem 0;
+  border-radius: calc(var(--radius-control) - 2px);
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.appearance-segment:hover span { color: var(--foreground); }
+
+.appearance-segment input:checked + span {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.appearance-segment input:focus-visible + span {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.appearance-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.3rem;
+}
+
+.appearance-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.1rem 0.35rem;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.appearance-swatch:hover { background: var(--bg-inset); }
+
+/* Each dot previews that palette's accent exactly as this theme would render
+   it, lightness and chroma cap included, not just the raw seed colour. */
+.appearance-swatch-dot {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: oklch(from var(--swatch-seed) var(--accent-l) min(c, 0.15) h);
+  box-shadow: inset 0 0 0 1px rgba(var(--sheen), 0.14);
+}
+
+.appearance-swatch-name {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.appearance-swatch:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--bg-inset);
+}
+
+.appearance-swatch:has(input:checked) .appearance-swatch-name {
   color: var(--foreground);
+  font-weight: 600;
+}
+
+.appearance-swatch:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.appearance-custom,
+.appearance-tint {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.appearance-color {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 2.25rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-control);
+  background: none;
+  cursor: pointer;
+}
+
+.appearance-color::-webkit-color-swatch-wrapper { padding: 3px; }
+.appearance-color::-webkit-color-swatch { border: 0; border-radius: calc(var(--radius-control) - 3px); }
+.appearance-color::-moz-color-swatch { border: 0; border-radius: calc(var(--radius-control) - 3px); }
+
+.appearance-hex,
+.appearance-tint-value {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.appearance-tint input[type="range"] {
+  flex: 1;
+  accent-color: var(--primary);
+}
+
+.appearance-tint-value {
+  min-width: 3.4rem;
+  text-align: right;
+}
+
+.appearance-reset {
+  width: 100%;
+  justify-content: center;
 }
 
 @media (max-width: 640px) {
-  .theme-toggle { top: 0.5rem; right: 0.5rem; }
-  .theme-label { display: none; }
+  .appearance { top: 0.5rem; right: 0.5rem; }
+  .appearance-trigger { padding: 0 0.6rem; }
+
+  /* Icon only on a phone, but the button keeps its accessible name. */
+  .appearance-trigger-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* ---------- Texture ---------- */
@@ -3438,8 +3538,7 @@ html { scroll-behavior: smooth; }
 .btn-icon:active,
 .segment-btn:active,
 .review-btn:active,
-.keyword-chip:active,
-.theme-select:active {
+.keyword-chip:active {
   transform: translateY(1px) scale(0.985);
 }
 

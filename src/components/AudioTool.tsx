@@ -223,12 +223,18 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, h);
 
-    // Painted, not styled, so the colours have to be read off the theme.
-    const style = getComputedStyle(canvas);
-    const waveColours = {
-      lit: style.getPropertyValue('--wave-lit').trim() || 'rgba(96,165,250,0.95)',
-      dim: style.getPropertyValue('--wave-dim').trim() || 'rgba(148,163,184,0.18)',
+    // Painted, not styled, so the colours have to be read off the theme. They
+    // are derived with relative colour syntax, which a custom property holds as
+    // unevaluated text, so each one is resolved through a probe element first.
+    const resolve = (token: string) => {
+      const probe = document.createElement('span');
+      probe.style.color = `var(${token})`;
+      canvas.parentElement?.appendChild(probe);
+      const value = getComputedStyle(probe).color;
+      probe.remove();
+      return value;
     };
+    const waveColours = { lit: resolve('--wave-lit'), dim: resolve('--wave-dim') };
 
     const x0 = (start / buffer.duration) * w;
     const x1 = (end / buffer.duration) * w;

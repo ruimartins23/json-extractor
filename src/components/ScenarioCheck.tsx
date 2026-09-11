@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import { ClipboardCheck, ChevronDown, Check, X, ArrowRight } from 'lucide-react';
 import type { OrganizedTimeline, ParsedEvent } from '../utils/parser';
+import { agentOffset } from '../utils/agentColour';
 import { SCENARIOS } from '../data/scenarios';
 
 interface ScenarioCheckProps {
@@ -63,19 +64,13 @@ function transferTarget(event: ParsedEvent): string {
   return normAgent(a?.displayName || a?.targetAgent || a?.agent_name || a?.target || a?.destination || a?.agent) || 'Unknown';
 }
 
-// Stable hue per agent so the same agent keeps its color (mirrors the flow map).
-const AGENT_HUES = [265, 190, 330, 45, 150, 15, 285, 110];
-function agentHue(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return AGENT_HUES[hash % AGENT_HUES.length];
-}
-
-// A colored agent chip; for a transfer it reads "from → to".
-function AgentTag({ agent, target }: { agent?: string; target?: string }) {
+// A coloured agent chip; for a transfer it reads "from → to". The colour comes
+// from the same slot table as the flow map and the timeline badges, so one
+// agent is one colour everywhere on the page.
+function AgentTag({ events, agent, target }: { events: ParsedEvent[]; agent?: string; target?: string }) {
   if (!agent && !target) return null;
   const label = agent || '?';
-  const style = { '--agent-h': agentHue((agent || target || '').toLowerCase()) } as CSSProperties;
+  const style = { '--agent-offset': agentOffset(events, agent || target || '') } as CSSProperties;
   return (
     <span className="scenario-agent" style={style}>
       {label}
@@ -234,7 +229,7 @@ export function ScenarioCheck({ agentType, events, scenario }: ScenarioCheckProp
                         )}
                         {row.status === 'missing' && <span className="scenario-missing-tag">missing</span>}
                         {row.status === 'optional' && <span className="scenario-optional-tag">optional, not called</span>}
-                        <AgentTag agent={row.fn.agent} target={row.fn.target} />
+                        <AgentTag events={events} agent={row.fn.agent} target={row.fn.target} />
                       </li>
                     ))}
                   </ol>
@@ -249,7 +244,7 @@ export function ScenarioCheck({ agentType, events, scenario }: ScenarioCheckProp
                         <li key={i} className="scenario-item extra">
                           <span className="scenario-item-icon extra">+</span>
                           <span className="scenario-fn">{e.name}</span>
-                          <AgentTag agent={e.agent} target={e.target} />
+                          <AgentTag events={events} agent={e.agent} target={e.target} />
                         </li>
                       ))}
                     </ul>

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback, Fragment } from 'react';
 import type { CSSProperties } from 'react';
 import { endSessionIssue } from '../utils/parser';
+import { agentOffset } from '../utils/agentColour';
 import type { OrganizedTimeline, ParsedEvent, EnvironmentMode, ParserConfig } from '../utils/parser';
 import { ReferenceDataPanel } from './ReferenceDataPanel';
 import { ScenarioCheck } from './ScenarioCheck';
@@ -44,21 +45,6 @@ function useCopyToClipboard(idleLabel: string): [string, (text: string | undefin
   };
 
   return [label, copy];
-}
-
-// Stable hue per agent name, so an agent keeps its colour across the session.
-// Constrained to a warm arc around the accent rather than spread over the whole
-// wheel: the old set ran violet, cyan, pink and lime, which read as a rainbow
-// dropped onto a warm ground. The chip carries the agent's name in text, so
-// hue is a secondary cue and does not need to be maximally separated.
-const AGENT_HUES = [38, 14, 62, 26, 80, 5, 50, 70];
-
-function agentHue(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  }
-  return AGENT_HUES[hash % AGENT_HUES.length];
 }
 
 function getTransferTarget(event: ParsedEvent): string {
@@ -773,7 +759,7 @@ export function TimelineView({
                 {i > 0 && <ArrowRight className="flow-arrow" />}
                 <button
                   className="flow-segment"
-                  style={{ '--agent-h': agentHue(segment.agent.toLowerCase()), flexGrow: segment.count } as CSSProperties}
+                  style={{ '--agent-offset': agentOffset(data.events, segment.agent.toLowerCase()), flexGrow: segment.count } as CSSProperties}
                   onClick={() => jumpToEvent(segment.startIndex)}
                   title={`${segment.agent}, ${segment.count} event${segment.count > 1 ? 's' : ''} (click to jump)`}
                 >
@@ -941,9 +927,9 @@ function TimelineItem({ event, index, globalIndex, expandSignal, reviewStatus, o
     } else if (role === 'system' || role === 'agent') {
       badgeVariant = 'accent';
     } else {
-      // Named agents each get a stable hue of their own
+      // Named agents each get a colour slot of their own
       badgeVariant = 'agent';
-      badgeStyle = { '--agent-h': agentHue(role) } as CSSProperties;
+      badgeStyle = { '--agent-offset': agentOffset(allEvents, role) } as CSSProperties;
     }
   }
   const badgeText = isMessage

@@ -14,15 +14,21 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script>
-      // Runs before first paint: the CSS base is dark, so a light reader would
-      // otherwise see it flash. Key matches KEY in src/components/ThemeToggle.tsx.
+      // Runs before first paint so neither the theme nor a stored palette
+      // flashes. Keys and the palette shape match src/components/AppearanceMenu.tsx.
       (function () {
-        var t;
+        var root = document.documentElement, t, p;
         try { t = localStorage.getItem('ai-json-organizer:theme'); } catch (e) {}
         if (t !== 'light' && t !== 'dark') {
           t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
         }
-        document.documentElement.setAttribute('data-theme', t);
+        root.setAttribute('data-theme', t);
+        try { p = JSON.parse(localStorage.getItem('ai-json-organizer:palette') || 'null'); } catch (e) {}
+        if (p && /^#[0-9a-f]{6}$/i.test(p.seed) && typeof p.tint === 'number' && p.tint >= 0 && p.tint <= 1) {
+          root.style.setProperty('--accent-seed', p.seed);
+          root.style.setProperty('--tint', String(p.tint));
+          root.setAttribute('data-palette', typeof p.id === 'string' ? p.id : 'custom');
+        }
       })();
     </script>
   </head>

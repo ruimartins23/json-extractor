@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { Dropzone } from './components/Dropzone';
 import type { ScenarioSelection } from './components/Dropzone';
 import { TimelineView } from './components/TimelineView';
-import { Announcement } from './components/Announcement';
 import { parseAITrainingJSON } from './utils/parser';
 import type { OrganizedTimeline, EnvironmentMode, ParserConfig } from './utils/parser';
 import { BrainCircuit } from 'lucide-react';
 // The /react entry point, not /next: this is a Vite SPA.
 import { Analytics } from '@vercel/analytics/react';
-import { ThemeToggle } from './components/ThemeToggle';
+import { AppearanceMenu } from './components/AppearanceMenu';
 
 function App() {
   const [timelineData, setTimelineData] = useState<OrganizedTimeline | null>(null);
@@ -69,7 +68,7 @@ function App() {
   return (
     <div className="gradient-bg app-container">
       <a className="skip-link" href="#main">Skip to content</a>
-      <ThemeToggle />
+      <AppearanceMenu />
 
       <header className={`header animate-fade-in ${timelineData ? 'compact' : ''}`}>
         <div className="header-icon-container glass">
@@ -86,7 +85,6 @@ function App() {
       </header>
 
       <main className="main-content" id="main">
-        <Announcement />
         {!timelineData ? (
           <Dropzone onFileParsed={handleFileParsed} />
         ) : (
