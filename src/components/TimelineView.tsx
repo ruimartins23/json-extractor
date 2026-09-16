@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback, Fragment } from 'rea
 import type { CSSProperties } from 'react';
 import { endSessionIssue } from '../utils/parser';
 import { agentOffset } from '../utils/agentColour';
+import { computeTurns } from '../utils/turns';
 import type { OrganizedTimeline, ParsedEvent, EnvironmentMode, ParserConfig } from '../utils/parser';
 import { ReferenceDataPanel } from './ReferenceDataPanel';
 import { ScenarioCheck } from './ScenarioCheck';
@@ -11,7 +12,7 @@ import { clearStoredRecording } from '../utils/recordingStore';
 import { findFixtureMatch } from '../utils/referenceData';
 import type { FixtureFocus } from '../utils/referenceData';
 import {
-  Activity, Copy, Download, AlertTriangle, Search, MessageSquare, Braces,
+  Activity, Copy, Download, AlertTriangle, Search, MessageSquare, MessagesSquare, Braces,
   ArrowLeftRight, ArrowRight, ChevronsUpDown, ChevronsDownUp, Check, X, StickyNote,
 } from 'lucide-react';
 
@@ -320,6 +321,7 @@ export function TimelineView({
   const [showTranscripts, setShowTranscripts] = useState(true);
   const [showFunctions, setShowFunctions] = useState(true);
   const [showTransfers, setShowTransfers] = useState(true);
+  const [showTurns, setShowTurns] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandSignal, setExpandSignal] = useState({ version: 0, open: false });
   const [reviewStatus, setReviewStatus] = useState<Record<string, ReviewStatus>>({});
@@ -385,6 +387,8 @@ export function TimelineView({
     });
     return counts;
   }, [data.events]);
+
+  const turns = useMemo(() => computeTurns(data.events), [data.events]);
 
   const { summaryLines, displayTranscriptText, downloadTranscriptText } = useMemo(
     () => buildOutputs(data, dropped),
@@ -554,9 +558,14 @@ export function TimelineView({
 
         <div className="facts-secondary">
         <div className="fact">
+          <MessagesSquare className="fact-icon" />
+          <span className="fact-value">{turns.count}</span>
+          <span className="fact-label">Turns</span>
+        </div>
+        <div className="fact">
           <MessageSquare className="fact-icon" />
           <span className="fact-value">{stats.messages}</span>
-          <span className="fact-label">Transcript turns</span>
+          <span className="fact-label">Messages</span>
         </div>
         <div className="fact">
           <Braces className="fact-icon" />
@@ -788,42 +797,61 @@ export function TimelineView({
         {data.agentType === 'prod multi agent' && (
           <label className="checkbox-label">
             <input type="checkbox" checked={showTransfers} onChange={e => setShowTransfers(e.target.checked)} />
-            Show Transfers
+            Show transfers
           </label>
         )}
-        <div className="filter-search">
-          <Search className="filter-search-icon" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search events..."
-            className="text-input"
-          />
-          <span className="filter-count">{visibleEvents.length}/{data.events.length}</span>
-        </div>
-        <div className="filter-expand-btns">
-          <button
-            className="btn-secondary"
-            title="Expand all details"
-            onClick={() => setExpandSignal(s => ({ version: s.version + 1, open: true }))}
-          >
-            <ChevronsUpDown className="btn-icon-sm" />
-          </button>
-          <button
-            className="btn-secondary"
-            title="Collapse all details"
-            onClick={() => setExpandSignal(s => ({ version: s.version + 1, open: false }))}
-          >
-            <ChevronsDownUp className="btn-icon-sm" />
-          </button>
+        <label className="checkbox-label">
+          <input type="checkbox" checked={showTurns} onChange={e => setShowTurns(e.target.checked)} />
+          Show turns
+        </label>
+        {/* Search and the expand buttons wrap as one group, so the buttons never end up
+            on a line of their own when the filters run out of room. */}
+        <div className="filter-tools">
+          <div className="filter-search">
+            <Search className="filter-search-icon" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search events..."
+              className="text-input"
+            />
+            <span className="filter-count">{visibleEvents.length}/{data.events.length}</span>
+          </div>
+          <div className="filter-expand-btns">
+            <button
+              className="btn-secondary"
+              title="Expand all details"
+              onClick={() => setExpandSignal(s => ({ version: s.version + 1, open: true }))}
+            >
+              <ChevronsUpDown className="btn-icon-sm" />
+            </button>
+            <button
+              className="btn-secondary"
+              title="Collapse all details"
+              onClick={() => setExpandSignal(s => ({ version: s.version + 1, open: false }))}
+            >
+              <ChevronsDownUp className="btn-icon-sm" />
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="timeline-list">
-        {visibleEvents.map(({ event, globalIndex }, idx) => (
+        {visibleEvents.map(({ event, globalIndex }, idx) => {
+          // A turn label goes in front of the first visible row of each turn. It
+          // compares against the previous visible row, not the previous event, so
+          // it still marks turns when transcripts are filtered out or a search is on.
+          const turn = turns.turnOf[globalIndex];
+          const startsTurn = turn > 0 && (idx === 0 || turns.turnOf[visibleEvents[idx - 1].globalIndex] !== turn);
+          return (
+          <Fragment key={event.id || globalIndex}>
+          {showTurns && startsTurn && (
+            <div className="turn-divider">
+              <span className="turn-divider-label">Turn {turn}</span>
+            </div>
+          )}
           <TimelineItem
-            key={event.id || globalIndex}
             event={event}
             index={idx}
             globalIndex={globalIndex}
@@ -843,7 +871,9 @@ export function TimelineView({
                 : undefined
             }
           />
-        ))}
+          </Fragment>
+          );
+        })}
         {data.events.length === 0 && (
           <div className="timeline-empty glass">
             No supported tools or events found in this JSON file.

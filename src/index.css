@@ -424,6 +424,58 @@ input, textarea, select {
   z-index: 1;
 }
 
+/* ---------- Announcement banner ---------- */
+
+.announcement {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  position: relative;
+}
+
+.announcement-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-control);
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+.announcement-icon svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  color: var(--primary);
+}
+
+.announcement-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.announcement-title {
+  font-size: 0.92rem;
+  margin-bottom: 0.3rem;
+}
+
+.announcement-body p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  max-width: 78ch;
+}
+
+.announcement-actions {
+  margin-top: 0.7rem;
+}
+
 /* ---------- Animations ---------- */
 
 @keyframes fadeInScale {
@@ -2899,7 +2951,7 @@ input, textarea, select {
 
 .filter-bar {
   display: flex;
-  gap: 1.5rem;
+  gap: 0.75rem 1.25rem;
   margin-bottom: 1.5rem;
   padding: 0.85rem 1.5rem;
   align-items: center;
@@ -2914,17 +2966,41 @@ input, textarea, select {
   font-size: 0.9rem;
 }
 
+/* Pushed to the right edge as a unit with the expand buttons. */
+.filter-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
 .filter-search {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  margin-left: auto;
-  min-width: 220px;
+  min-width: 12rem;
 }
 
 .filter-search .text-input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
   padding: 0.4rem 0.7rem;
   font-size: 0.85rem;
+}
+
+/* On a phone the group takes its own full line and the search box gives up width
+   so the buttons still fit beside it. */
+@media (max-width: 640px) {
+  .filter-tools {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .filter-search {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .filter-search-icon {
@@ -3591,4 +3667,43 @@ html { scroll-behavior: smooth; }
 
 @media (max-width: 900px) {
   .app-container { padding: 2rem 1.25rem 4rem; }
+}
+
+/* ---------- Turns ---------- */
+
+/* A turn is one user side and one agent side, paired from the top. The label sits
+   on the timeline spine, so turns read as chapters rather than as another row. */
+.turn-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 1rem 0 0.25rem -1rem;
+}
+
+.timeline-list > .turn-divider:first-child {
+  margin-top: 0.25rem;
+}
+
+.turn-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-glass);
+}
+
+/* Opaque, so it masks the spine where it crosses it instead of sitting on top. */
+.turn-divider-label {
+  position: relative;
+  z-index: 1;
+  padding: 0.12rem 0.55rem;
+  border: 1px solid var(--border-glass);
+  border-radius: 999px;
+  background: var(--surface-solid);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }

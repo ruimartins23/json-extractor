@@ -8,6 +8,7 @@ import { BrainCircuit } from 'lucide-react';
 // The /react entry point, not /next: this is a Vite SPA.
 import { Analytics } from '@vercel/analytics/react';
 import { AppearanceMenu } from './components/AppearanceMenu';
+import { Announcement } from './components/Announcement';
 
 function App() {
   const [timelineData, setTimelineData] = useState<OrganizedTimeline | null>(null);
@@ -85,6 +86,7 @@ function App() {
       </header>
 
       <main className="main-content" id="main">
+        <Announcement />
         {!timelineData ? (
           <Dropzone onFileParsed={handleFileParsed} />
         ) : (
