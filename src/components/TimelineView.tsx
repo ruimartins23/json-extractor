@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react';
 import { endSessionIssue } from '../utils/parser';
 import { agentOffset } from '../utils/agentColour';
 import { computeTurns } from '../utils/turns';
+import { alignAudio } from '../utils/audioSync';
+import type { AudioInfo, SessionOffset } from '../utils/audioSync';
 import type { OrganizedTimeline, ParsedEvent, EnvironmentMode, ParserConfig } from '../utils/parser';
 import { ReferenceDataPanel } from './ReferenceDataPanel';
 import { ScenarioCheck } from './ScenarioCheck';
@@ -124,6 +126,15 @@ function jumpToEvent(globalIndex: number) {
   // Restart the flash animation even when jumping to the same row twice
   void el.offsetWidth;
   el.classList.add('flash');
+}
+
+/** Whose voice a line is in: the two reach a recording at slightly different times. */
+type Voice = 'user' | 'agent';
+
+/** m:ss.s, the audio player's own clock format. */
+function audioClock(seconds: number): string {
+  const s = Math.max(0, seconds);
+  return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
 }
 
 function formatOffset(ms: number): string {
@@ -338,6 +349,13 @@ export function TimelineView({
     setAudioReady(!!fn);
   }, []);
   const [audioFormat, setAudioFormat] = useState<AudioFormat>('m4a');
+  // The loaded recording's length and start, so timestamps can be found in it.
+  const [audioInfo, setAudioInfo] = useState<AudioInfo | null>(null);
+  const [seekRequest, setSeekRequest] = useState<{ seconds: number; nonce: number } | null>(null);
+  const [seekAnnouncement, setSeekAnnouncement] = useState('');
+  // The last timestamp clicked, and a hand-made line-up; both belong to the recording they were made on.
+  const [lastSeek, setLastSeek] = useState<{ info: AudioInfo; offset: number; voice: Voice; label: string } | null>(null);
+  const [lineUp, setLineUp] = useState<{ info: AudioInfo; correction: number; label: string } | null>(null);
 
   // A fresh upload clears any prior review marks and notes.
   useEffect(() => {
@@ -416,6 +434,60 @@ export function TimelineView({
       .filter(t => !isNaN(t));
     return times.length > 0 ? Math.min(...times) : null;
   }, [data.events]);
+
+  // The whole call, the span the Duration in the header measures. Without one,
+  // the timeline's first and last events stand in for it.
+  const sessionClock = useMemo(() => {
+    const times = data.events
+      .map(e => (e.timestamp ? new Date(e.timestamp).getTime() : NaN))
+      .filter(t => !isNaN(t));
+    if (times.length === 0) return null;
+    const zero = Math.min(...times);
+    const span = data.sessionSpan;
+    return { zero, start: Math.min(zero, span?.start ?? zero), end: span?.end ?? Math.max(...times) };
+  }, [data.events, data.sessionSpan]);
+
+  const audioAlignment = useMemo((): SessionOffset | null => {
+    if (!audioInfo || !sessionClock) return null;
+    const auto = alignAudio(audioInfo, sessionClock, data.speech);
+    if (lineUp?.info !== audioInfo) return auto;
+    const c = lineUp.correction;
+    return {
+      seconds: auto.seconds + c,
+      userSeconds: (auto.userSeconds ?? auto.seconds) + c,
+      method: 'manual',
+      linedUpOn: lineUp.label,
+      correction: c,
+    };
+  }, [audioInfo, sessionClock, data.speech, lineUp]);
+  const audioSync = useMemo(
+    () => (audioInfo && audioAlignment
+      ? { lead: audioAlignment.seconds, userLead: audioAlignment.userSeconds ?? audioAlignment.seconds, duration: audioInfo.duration }
+      : null),
+    [audioInfo, audioAlignment],
+  );
+
+  const seekAudio = useCallback((offset: number, voice: Voice, label: string) => {
+    if (!audioInfo || !audioSync) return;
+    const seconds = offset + (voice === 'user' ? audioSync.userLead : audioSync.lead);
+    setSeekRequest(prev => ({ seconds, nonce: (prev?.nonce ?? 0) + 1 }));
+    setLastSeek({ info: audioInfo, offset, voice, label });
+    setSeekAnnouncement(`Audio cursor moved to ${audioClock(seconds)}`);
+  }, [audioInfo, audioSync]);
+
+  // The rater found where the last clicked line really is: every timestamp moves with it.
+  const seekTarget = lastSeek?.info === audioInfo ? lastSeek : null;
+  const lineUpHere = useCallback((at: number) => {
+    if (!audioInfo || !audioSync || !seekTarget) return;
+    const landed = seekTarget.offset + (seekTarget.voice === 'user' ? audioSync.userLead : audioSync.lead);
+    const before = lineUp?.info === audioInfo ? lineUp.correction : 0;
+    setLineUp({ info: audioInfo, correction: before + (at - landed), label: seekTarget.label });
+    setSeekAnnouncement(`${seekTarget.label} lined up at ${audioClock(at)}`);
+  }, [audioInfo, audioSync, seekTarget, lineUp]);
+  const undoLineUp = useCallback(() => {
+    setLineUp(null);
+    setSeekAnnouncement('Back to the automatic line-up');
+  }, []);
 
   const handleDownloadJson = () => {
     if (data.rawJsonText) downloadFile(data.rawJsonText, summaryFileName);
@@ -614,6 +686,13 @@ export function TimelineView({
         format={audioFormat}
         onFormatChange={setAudioFormat}
         onEncoderChange={setAudioEncoder}
+        seekTo={seekRequest}
+        onAudioInfo={setAudioInfo}
+        sessionOffset={audioAlignment}
+        linesStartJumps={data.events.some(e => e.spokenAt !== undefined)}
+        lineUpLabel={seekTarget?.label ?? null}
+        onLineUp={lineUpHere}
+        onUndoLineUp={undoLineUp}
       />
 
       <div className="export-section glass">
@@ -837,6 +916,9 @@ export function TimelineView({
         </div>
       </div>
 
+      {/* Says where the audio cursor went, since the player is usually off-screen. */}
+      <p className="sr-only" aria-live="polite">{seekAnnouncement}</p>
+
       <div className="timeline-list">
         {visibleEvents.map(({ event, globalIndex }, idx) => {
           // A turn label goes in front of the first visible row of each turn. It
@@ -865,11 +947,16 @@ export function TimelineView({
             allEvents={data.events}
             referenceData={data.referenceData}
             onFixtureFocus={focusFixture}
-            offsetLabel={
+            offsetMs={
               sessionStartMs !== null && event.timestamp
-                ? formatOffset(new Date(event.timestamp).getTime() - sessionStartMs)
+                ? new Date(event.timestamp).getTime() - sessionStartMs
                 : undefined
             }
+            spokenOffsetMs={
+              sessionStartMs !== null && event.spokenAt !== undefined ? event.spokenAt - sessionStartMs : undefined
+            }
+            audioSync={audioSync}
+            onSeek={seekAudio}
           />
           </Fragment>
           );
@@ -911,10 +998,27 @@ interface TimelineItemProps {
   allEvents: ParsedEvent[];
   referenceData?: Record<string, unknown>;
   onFixtureFocus: (match: { block: string; tableIndex: number; rowIndex: number }) => void;
-  offsetLabel?: string;
+  /** Time since the session started; shown as +mm:ss. */
+  offsetMs?: number;
+  /** When the line starts being said, from the same zero as offsetMs. */
+  spokenOffsetMs?: number;
+  /** How the recording lines up with the session, or null when there is none to jump in. */
+  audioSync: { lead: number; userLead: number; duration: number } | null;
+  /** Seconds into the session, whose voice it is, and the +mm:ss it shows as. */
+  onSeek: (offset: number, voice: Voice, label: string) => void;
 }
 
-function TimelineItem({ event, index, globalIndex, expandSignal, reviewStatus, onReview, note, onNote, counted, onToggleCount, allEvents, referenceData, onFixtureFocus, offsetLabel }: TimelineItemProps) {
+function TimelineItem({ event, index, globalIndex, expandSignal, reviewStatus, onReview, note, onNote, counted, onToggleCount, allEvents, referenceData, onFixtureFocus, offsetMs, spokenOffsetMs, audioSync, onSeek }: TimelineItemProps) {
+  const offsetLabel = offsetMs !== undefined ? formatOffset(offsetMs) : undefined;
+  // A line is stamped when it was finished; jump to where it starts being said
+  // when the session records that, in that voice's place in the recording.
+  const voice: Voice = event.type === 'message' && (event.messageRole ?? '').toLowerCase() === 'user' ? 'user' : 'agent';
+  const spokenOffset = offsetMs !== undefined && spokenOffsetMs !== undefined ? spokenOffsetMs / 1000 : undefined;
+  const jumpOffset = spokenOffset ?? (offsetMs !== undefined ? offsetMs / 1000 : undefined);
+  const audioTarget = jumpOffset !== undefined && audioSync
+    ? jumpOffset + (voice === 'user' ? audioSync.userLead : audioSync.lead)
+    : null;
+  const inRecording = audioTarget !== null && audioSync !== null && audioTarget >= 0 && audioTarget <= audioSync.duration;
   const [expanded, setExpanded] = useState(false);
   // Open by default if this row already has a note; can be collapsed without losing it.
   const [noteOpen, setNoteOpen] = useState(!!note);
@@ -1053,7 +1157,29 @@ function TimelineItem({ event, index, globalIndex, expandSignal, reviewStatus, o
         >
           <StickyNote className="btn-icon-sm" />
         </button>
-        {offsetLabel && <span className="event-offset">{offsetLabel}</span>}
+        {offsetLabel && audioTarget !== null ? (
+          // With a recording loaded, the timestamp moves the audio cursor to this moment.
+          <button
+            type="button"
+            className="event-offset seekable"
+            disabled={!inRecording}
+            title={inRecording
+              ? `Move the audio cursor to ${audioClock(audioTarget)}${spokenOffset !== undefined ? ', where this line starts' : ''}`
+              : 'Not in the recording'}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSeek(jumpOffset ?? 0, voice, offsetLabel);
+              const el = e.currentTarget;
+              el.classList.remove('seeked');
+              void el.offsetWidth; // restart the confirmation even on a repeat click
+              el.classList.add('seeked');
+            }}
+          >
+            {offsetLabel}
+          </button>
+        ) : (
+          offsetLabel && <span className="event-offset">{offsetLabel}</span>
+        )}
       </div>
 
       {isMessage && <div className="message-content">{event.messageContent}</div>}

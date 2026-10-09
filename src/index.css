@@ -424,6 +424,17 @@ input, textarea, select {
   z-index: 1;
 }
 
+/* How the timeline's timestamps were lined up with this recording. */
+.audio-sync-note {
+  margin-top: 0.35rem;
+}
+
+.audio-sync-note strong {
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- Announcement banner ---------- */
 
 .announcement {
@@ -470,6 +481,24 @@ input, textarea, select {
   font-size: 0.85rem;
   line-height: 1.55;
   max-width: 78ch;
+}
+
+.announcement-body ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  max-width: 78ch;
+}
+
+.announcement-body li + li {
+  margin-top: 0.25rem;
+}
+
+.announcement-body strong {
+  color: var(--foreground);
+  font-weight: 600;
 }
 
 .announcement-actions {
@@ -3102,6 +3131,52 @@ input, textarea, select {
   white-space: nowrap;
 }
 
+/* With a recording loaded, a timestamp moves the audio cursor to that moment.
+   The transparent left border keeps the old 0.75rem gap without the hover and
+   flash wash spreading into it, and the negative right margin keeps the digits
+   lined up with the plain timestamps. */
+.event-offset.seekable {
+  margin-top: 0.15rem;
+  margin-right: -0.35rem;
+  padding: 0.1rem 0.35rem;
+  border: 0;
+  border-left: 0.4rem solid transparent;
+  border-radius: 4px;
+  background-clip: padding-box;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 0.2em;
+  transition: color 0.15s ease;
+}
+
+.event-offset.seekable:hover:not(:disabled) {
+  color: var(--primary);
+  text-decoration-color: currentColor;
+}
+
+.event-offset.seekable:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.event-offset.seekable:disabled {
+  cursor: not-allowed;
+  text-decoration: none;
+  opacity: 0.6;
+}
+
+@keyframes seekFlash {
+  0% { background-color: color-mix(in srgb, var(--primary) 26%, transparent); color: var(--primary); }
+  100% { background-color: transparent; }
+}
+
+/* A brief confirmation on the timestamp itself: the player it moved is usually
+   off-screen above the timeline. */
+.event-offset.seeked {
+  animation: seekFlash 1.2s ease-out;
+}
+
 .timeline-row-main {
   display: flex;
   align-items: flex-start;
@@ -3706,4 +3781,38 @@ html { scroll-behavior: smooth; }
   text-transform: uppercase;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+
+/* Read by screen readers, not shown. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Lining a timestamp up with the audio by hand */
+.audio-lineup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.6rem;
+  margin: -0.3rem 0 0.8rem;
+}
+
+.audio-lineup .btn-secondary {
+  min-height: 1.85rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+.audio-lineup-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }

@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { AudioLines, ChevronDown, Play, Pause, Scissors, RotateCcw } from 'lucide-react';
+import { AudioLines, ChevronDown, Play, Pause, Scissors, RotateCcw, Crosshair, Undo2 } from 'lucide-react';
 import { decodeAudioFile, encodeAudio, waveformPeaks, formatClock } from '../utils/audio';
 import type { AudioFormat } from '../utils/audio';
+import { recordingStartOf } from '../utils/recordingStore';
+import { soundActivity } from '../utils/audioSync';
+import type { AudioInfo, SessionOffset } from '../utils/audioSync';
 
 interface AudioToolProps {
   /** Recording attached on the upload page, loaded automatically when present. */
@@ -10,6 +13,20 @@ interface AudioToolProps {
   onFormatChange: (format: AudioFormat) => void;
   /** Hands up an encoder for the current file and trim, or null when no file is loaded. */
   onEncoderChange: (encode: ((onProgress?: (f: number) => void) => Promise<Blob>) | null) => void;
+  /** A moment, in seconds, to put the play cursor on: a timestamp clicked on the
+   *  timeline. The nonce lets the same moment be asked for twice in a row. */
+  seekTo?: { seconds: number; nonce: number } | null;
+  /** The loaded recording's length and start time, or null when nothing is loaded. */
+  onAudioInfo?: (info: AudioInfo | null) => void;
+  /** Where the session sits in the recording, to say how timestamps were lined up. */
+  sessionOffset?: SessionOffset | null;
+  /** Lines know when they start being said, so their timestamps jump there. */
+  linesStartJumps?: boolean;
+  /** The last timestamp clicked on the timeline, which the rater can line up by hand. */
+  lineUpLabel?: string | null;
+  /** That timestamp really happens at this many seconds into the recording. */
+  onLineUp?: (seconds: number) => void;
+  onUndoLineUp?: () => void;
 }
 
 const BUCKETS = 700;
@@ -21,7 +38,7 @@ function preciseClock(seconds: number): string {
   return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
 }
 
-export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange }: AudioToolProps) {
+export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange, seekTo, onAudioInfo, sessionOffset, linesStartJumps, lineUpLabel, onLineUp, onUndoLineUp }: AudioToolProps) {
   const [open, setOpen] = useState(!!initialFile);
   const [buffer, setBuffer] = useState<AudioBuffer | null>(null);
   const [sourceName, setSourceName] = useState('');
@@ -33,6 +50,8 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [playhead, setPlayhead] = useState<number | null>(null);
+  /** When the loaded recording started, in ms since the epoch. */
+  const [startedAt, setStartedAt] = useState<number | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -45,6 +64,9 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   /** Where playback was anchored: a position in the clip, and the clock time it
    *  started from. Rebased on a speed change so the playhead stays honest. */
   const anchorRef = useRef({ at: 0, clock: 0 });
+  /** The last seek request already acted on, so a new file never replays an old one. */
+  const handledSeekRef = useRef<number | null>(null);
+  const [revealed, setRevealed] = useState(0);
 
   const peaks = useMemo(() => (buffer ? waveformPeaks(buffer, BUCKETS) : []), [buffer]);
   const duration = buffer?.duration ?? 0;
@@ -69,6 +91,10 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
     try {
       const decoded = await decodeAudioFile(file);
       setBuffer(decoded);
+      // A file's modified time is when recording stopped (the in-app recorder
+      // creates it at Stop, and OBS last writes it at Stop), so the start is that
+      // minus the length. A recovered take carries its real start instead.
+      setStartedAt(recordingStartOf(file) ?? file.lastModified - decoded.duration * 1000);
       setSourceName(file.name);
       setStart(0);
       setEnd(decoded.duration);
@@ -85,6 +111,38 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   useEffect(() => {
     if (initialFile) loadFile(initialFile);
   }, [initialFile, loadFile]);
+
+  // Where the recording has sound, so the session's speech can be found in it.
+  const activity = useMemo(
+    () => (buffer
+      ? soundActivity(Array.from({ length: buffer.numberOfChannels }, (_, i) => buffer.getChannelData(i)), buffer.sampleRate)
+      : null),
+    [buffer],
+  );
+
+  useEffect(() => {
+    onAudioInfo?.(buffer && activity && startedAt !== null ? { duration: buffer.duration, startedAt, activity } : null);
+  }, [buffer, activity, startedAt, onAudioInfo]);
+
+  // A timestamp clicked on the timeline moves the cursor exactly as a click on
+  // the wave does: playback stops, the cursor moves, the trim edges stay put.
+  useEffect(() => {
+    if (!seekTo || !buffer || handledSeekRef.current === seekTo.nonce) return;
+    handledSeekRef.current = seekTo.nonce;
+    stopPlayback();
+    setCursor(Math.min(Math.max(seekTo.seconds, 0), buffer.duration));
+    setOpen(true);
+    setRevealed(seekTo.nonce);
+  }, [seekTo, buffer, stopPlayback]);
+
+  // Then the page goes to the wave, opened if it was collapsed, with focus on
+  // it so Space plays from the new spot straight away.
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!revealed || !track) return;
+    track.scrollIntoView({ block: 'center' });
+    track.focus({ preventScroll: true });
+  }, [revealed]);
 
   const playFrom = useCallback((from: number) => {
     if (!buffer) return;
@@ -142,6 +200,14 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
     setEnd(duration);
     setCursor(0);
     stopPlayback();
+  };
+
+  // The last clicked timestamp really happens here: the playhead while playing, else the cursor.
+  const lineUpHere = () => {
+    const at = playhead ?? cursor;
+    stopPlayback();
+    setCursor(at);
+    onLineUp?.(at);
   };
 
   const onKeys = (e: React.KeyboardEvent) => {
@@ -324,6 +390,8 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
                 className="audio-track"
                 ref={trackRef}
                 tabIndex={0}
+                role="group"
+                aria-label="Audio wave. Space plays and pauses from the cursor."
                 onKeyDown={onKeys}
                 onPointerMove={onTrackMove}
                 onPointerUp={endDrag}
@@ -361,6 +429,49 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
                 Click anywhere on the wave to listen from there. Drag the two blue edges to set what
                 you keep: the lit part is what gets saved. Space plays and pauses.
               </p>
+
+              {sessionOffset && (
+                <p className="trim-help audio-sync-note">
+                  Timestamps on the timeline jump to the matching moment here.{' '}
+                  {sessionOffset.seconds >= 0 ? (
+                    <>The session starts <strong>{preciseClock(sessionOffset.seconds)}</strong> into this recording</>
+                  ) : (
+                    <>This recording starts <strong>{preciseClock(-sessionOffset.seconds)}</strong> after the session began</>
+                  )}
+                  {sessionOffset.method === 'speech' && ', found by matching who spoke when in the session to the sound in this recording.'}
+                  {sessionOffset.method === 'clock' && ', worked out from when it was recorded.'}
+                  {sessionOffset.method === 'length' &&
+                    ". The file's date didn't match the call, so this is estimated from how much longer the recording is than the session."}
+                  {sessionOffset.method === 'manual' && (
+                    <>
+                      , lined up by hand on <strong>{sessionOffset.linedUpOn}</strong>: every jump is{' '}
+                      {Math.abs(sessionOffset.correction ?? 0).toFixed(1)} s{' '}
+                      {(sessionOffset.correction ?? 0) >= 0 ? 'later' : 'earlier'} than worked out.
+                    </>
+                  )}
+                  {linesStartJumps && ' Each line jumps to where it starts being said: its timestamp marks when it finished.'}
+                </p>
+              )}
+
+              {sessionOffset && (lineUpLabel || sessionOffset.method === 'manual') && (
+                <div className="audio-lineup">
+                  {lineUpLabel && (
+                    <button className="btn-secondary" onClick={lineUpHere}>
+                      <Crosshair className="btn-icon-sm" /> Line up {lineUpLabel} here
+                    </button>
+                  )}
+                  {sessionOffset.method === 'manual' && (
+                    <button className="btn-secondary" onClick={onUndoLineUp}>
+                      <Undo2 className="btn-icon-sm" /> Undo line-up
+                    </button>
+                  )}
+                  {lineUpLabel && (
+                    <span className="audio-lineup-hint">
+                      Line not here? Click the wave where it really starts, or press this while it plays.
+                    </span>
+                  )}
+                </div>
+              )}
 
               <div className="trim-rows">
                 <div className="trim-side">

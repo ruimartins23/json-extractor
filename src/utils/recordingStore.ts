@@ -26,6 +26,15 @@ interface Meta {
 
 let handle: Promise<IDBDatabase> | null = null;
 
+/** When a recovered take began. Its rebuilt file is dated when it was recovered,
+ *  not when recording stopped, so the start it was saved with is kept here. */
+const startedAtByFile = new WeakMap<File, number>();
+
+/** The known start of a recording, in ms since the epoch, when the app has one. */
+export function recordingStartOf(file: File): number | undefined {
+  return startedAtByFile.get(file);
+}
+
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -80,10 +89,9 @@ export async function loadStoredRecording(): Promise<StoredRecording | null> {
   const parts = (chunks.result ?? []) as Blob[];
   if (!stored || parts.length === 0) return null;
 
-  return {
-    file: new File(parts, stored.name, { type: stored.mimeType }),
-    savedAt: stored.savedAt,
-  };
+  const file = new File(parts, stored.name, { type: stored.mimeType });
+  startedAtByFile.set(file, stored.savedAt);
+  return { file, savedAt: stored.savedAt };
 }
 
 export async function clearStoredRecording(): Promise<void> {

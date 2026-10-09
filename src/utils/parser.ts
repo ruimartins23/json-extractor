@@ -1,3 +1,6 @@
+import { readSpeechTiming } from './speechTiming';
+import type { CallSpeech } from './speechTiming';
+
 export type EnvironmentMode = 'pre-prod' | 'prod single agent' | 'prod multi agent';
 
 export interface ParserConfig {
@@ -16,6 +19,8 @@ export interface ParsedEvent {
   messageContent?: string;
   raw: any;
   timestamp?: string;
+  /** For a spoken line: when it starts being said, in ms since the epoch. `timestamp` is when it finished. */
+  spokenAt?: number;
   duplicateCount?: number;
 }
 
@@ -23,6 +28,10 @@ export interface OrganizedTimeline {
   agentType: EnvironmentMode;
   sessionId?: string;
   duration?: string;
+  /** The whole call on the clock, in ms since the epoch: the span "duration" measures. */
+  sessionSpan?: { start: number; end: number };
+  /** Who was speaking when, from the trace, to find the call inside a recording. */
+  speech?: CallSpeech;
   rawJsonText?: string;
   hasEnvironmentMismatch?: boolean;
   referenceData?: Record<string, unknown>;
@@ -55,6 +64,10 @@ interface StreamRepair {
   turnsCompleted: number;
 }
 
+/** Where one whole line ends and the next begins, when two are shown as one. */
+const SENTENCE_END = /[.?!\u2026]["')\]]?$/;
+const SENTENCE_START = /^["'([]?\p{L}/u;
+
 /** A turn recorded mid-sentence ends on a dash rather than any real punctuation. */
 const CUT_OFF = /[\u2014\u2013-]+$/;
 
@@ -74,7 +87,11 @@ function planStreamRepair(data: unknown): StreamRepair {
   // message. Counting rather than checking presence keeps a genuine repeat.
   const alreadyShown = new Map<string, number>();
   const spokenByTurn = new Map<number, string[]>();
+  const userByTurn = new Map<number, string[]>();
   const said = (value: string) => value.replace(/\s+/g, ' ').trim();
+  // The words alone, so punctuation and capitals the recogniser revised do not count.
+  const words = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+  const wordKey = (value: string) => words(value).join(' ');
   let lastSpeaker = 'agent';
 
   for (const entry of data) {
@@ -90,7 +107,10 @@ function planStreamRepair(data: unknown): StreamRepair {
           (message?.chunks ?? []).map((chunk: any) => chunk?.transcript ?? '').join(''),
         );
         if (role.toLowerCase() === 'user') {
-          if (spoken) alreadyShown.set(spoken, (alreadyShown.get(spoken) ?? 0) + 1);
+          if (spoken) {
+            alreadyShown.set(wordKey(spoken), (alreadyShown.get(wordKey(spoken)) ?? 0) + 1);
+            userByTurn.set(turn, [...(userByTurn.get(turn) ?? []), spoken]);
+          }
         } else if (role) {
           lastSpeaker = role;
           if (spoken) spokenByTurn.set(turn, [...(spokenByTurn.get(turn) ?? []), spoken]);
@@ -106,15 +126,39 @@ function planStreamRepair(data: unknown): StreamRepair {
     }
   }
 
-  // Keep any user turn the assembled messages did not already account for.
+  // Keep any user turn the assembled messages did not already account for. The
+  // recogniser reports as it goes, either growing ("Hello." then "Hello, my
+  // name is…") or in pieces, and a turn's assembled lines can split or join
+  // what it heard. Each report belongs to the next assembled turn in the file.
+  const recognised: { entry: unknown; words: string[]; turn: number | null }[] = [];
+  let pending: typeof recognised = [];
   for (const entry of data) {
     const spoken = entry?.recognitionResult?.transcript;
-    if (typeof spoken !== 'string' || spoken.trim() === '') continue;
-    const key = said(spoken);
+    if (typeof spoken === 'string' && spoken.trim() !== '') {
+      const report = { entry, words: words(spoken), turn: null as number | null };
+      recognised.push(report);
+      pending.push(report);
+    }
+    const output = entry?.sessionOutput;
+    if (typeof output?.turnIndex === 'number' && output.diagnosticInfo?.messages?.length) {
+      pending.forEach(report => (report.turn = output.turnIndex));
+      pending = [];
+    }
+  }
+  const contains = (heard: string[], part: string[]) =>
+    part.length > 0 && heard.some((_, i) => part.every((word, k) => heard[i + k] === word));
+  recognised.forEach((report, i) => {
+    const next = recognised[i + 1];
+    // A report the next one in the same turn carries on from is only a draft of it.
+    if (next && next.turn === report.turn && report.words.every((word, k) => word === next.words[k])) return;
+    // Already said, in full or in part, by this turn's assembled lines.
+    const lines = report.turn !== null ? userByTurn.get(report.turn) : undefined;
+    if (lines && contains(words(lines.join(' ')), report.words)) return;
+    const key = report.words.join(' ');
     const remaining = alreadyShown.get(key) ?? 0;
     if (remaining > 0) alreadyShown.set(key, remaining - 1);
-    else keepRecognition.add(entry);
-  }
+    else keepRecognition.add(report.entry);
+  });
 
   firstFragment.forEach((entry, turn) => {
     const joined = text.get(turn) ?? '';
@@ -235,6 +279,9 @@ export function parseAITrainingJSON(
         completions: new Map<string, string>(),
         turnsCompleted: 0,
       };
+
+  // Where each line really starts, since lines are stamped when they finish.
+  const speechTiming = hasDiagnosticMessages ? readSpeechTiming(data) : null;
 
   // Attempt to extract session ID from agent-turn URIs
   const sessionMatch = stringifiedData.match(/\/([^/]+)\/agent-turn/);
@@ -525,6 +572,7 @@ export function parseAITrainingJSON(
         messageRole: finalRole,
         messageContent: content,
         timestamp: currentTime,
+        spokenAt: speechTiming?.starts.get(obj),
         raw: { agent: currentAgent, ...obj }
       });
     }
@@ -541,6 +589,7 @@ export function parseAITrainingJSON(
 
   // Finalize duration calculation
   let durationStr: string | undefined = undefined;
+  let sessionSpan: { start: number; end: number } | undefined;
 
   const validSpans = rootSpans.filter(s => !isNaN(s.start) && !isNaN(s.end));
   if (validSpans.length > 0) {
@@ -548,6 +597,7 @@ export function parseAITrainingJSON(
     const min = Math.min(...validSpans.map(s => s.start));
     const max = Math.max(...validSpans.map(s => s.end));
     durationStr = formatDuration(min, max);
+    sessionSpan = { start: min, end: max };
   } else if (rootSpans.length === 0) {
     // Fallback: Global eventTime regex
     const eventTimeRegex = /"eventTime"\s*:\s*"([^"]+)"/g;
@@ -559,6 +609,7 @@ export function parseAITrainingJSON(
     }
     if (dates.length > 0) {
       durationStr = formatDuration(Math.min(...dates), Math.max(...dates));
+      sessionSpan = { start: Math.min(...dates), end: Math.max(...dates) };
     }
   }
 
@@ -592,7 +643,12 @@ export function parseAITrainingJSON(
     } else if (event.type === 'message') {
       const lastEvent = finalEvents[finalEvents.length - 1];
       if (lastEvent && lastEvent.type === 'message' && lastEvent.messageRole === event.messageRole) {
-        lastEvent.messageContent = (lastEvent.messageContent || '') + (event.messageContent || '');
+        const before = lastEvent.messageContent || '';
+        const after = event.messageContent || '';
+        // Two whole lines meet at a sentence end ("ACCT95061." then "I'm upset"),
+        // while streamed fragments already carry their own spaces.
+        const gap = SENTENCE_END.test(before) && SENTENCE_START.test(after) ? ' ' : '';
+        lastEvent.messageContent = before + gap + after;
       } else {
         finalEvents.push(event);
       }
@@ -649,6 +705,8 @@ export function parseAITrainingJSON(
     agentType: mode,
     sessionId,
     duration: durationStr,
+    sessionSpan,
+    speech: speechTiming?.speech,
     hasEnvironmentMismatch,
     referenceData: Object.keys(referenceData).length > 0 ? referenceData : undefined,
     transcriptNotes: checkTranscript(data, finalEvents, repair),
