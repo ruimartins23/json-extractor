@@ -19,6 +19,13 @@ interface DropzoneProps {
     scenario: ScenarioSelection,
     media: File | null,
   ) => string | null;
+  /** Opens the audio tools with only the recording, the JSON to be added later. */
+  onRecordingOnly?: (
+    media: File,
+    mode: EnvironmentMode,
+    config: ParserConfig,
+    scenario: ScenarioSelection,
+  ) => void;
 }
 
 const MEDIA_ACCEPT = 'video/*,audio/*,.mp4,.mov,.m4v,.webm,.m4a,.mp3,.wav,.aac,.ogg';
@@ -61,7 +68,7 @@ function KeywordChips({ options, value, onSelect }: {
   );
 }
 
-export function Dropzone({ onFileParsed }: DropzoneProps) {
+export function Dropzone({ onFileParsed, onRecordingOnly }: DropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pastedText, setPastedText] = useState('');
@@ -386,6 +393,29 @@ export function Dropzone({ onFileParsed }: DropzoneProps) {
               <span className="media-preview-hint">
                 Give it a listen before you carry on. You should hear yourself and the agent.
               </span>
+            </div>
+          )}
+
+          {mediaFile && onRecordingOnly && (
+            <div className="recording-only">
+              <span className="recording-only-hint">
+                No JSON yet? Trim and download the recording now, and add the JSON when you have it.
+              </span>
+              <button
+                className="btn-secondary"
+                disabled={isRecording}
+                onClick={() =>
+                  onRecordingOnly(
+                    mediaFile,
+                    mode,
+                    { functionKeyword, transferKeyword, endSessionKeyword },
+                    { num: activeScenario, gender: scenarioGender },
+                  )
+                }
+              >
+                <AudioLines className="btn-icon" />
+                Continue with just the recording
+              </button>
             </div>
           )}
 

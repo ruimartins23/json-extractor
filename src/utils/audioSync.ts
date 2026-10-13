@@ -12,6 +12,8 @@ export interface AudioInfo {
 export interface SoundActivity {
   /** Seconds per frame. */
   frame: number;
+  /** 1 for each frame with sound in it, 0 for quiet. */
+  loud: Uint8Array;
   /** Running total of "sound in this frame" (1 or 0) minus the average, from frame 0. */
   prefix: Float64Array;
 }
@@ -49,6 +51,11 @@ export interface SessionOffset {
   linedUpOn?: string;
   /** For "manual": seconds it moved every jump compared with the automatic estimate. */
   correction?: number;
+  /**
+   * The session says who spoke when, but none of it lines up with this
+   * recording's sound: most likely a recording of a different call.
+   */
+  unmatched?: boolean;
 }
 
 const FRAME = 0.02;
@@ -68,12 +75,16 @@ export function soundActivity(channels: Float32Array[], sampleRate: number): Sou
   // Sound is well above the quietest fifth of the recording, and never mere hiss.
   const sorted = Float32Array.from(energy).sort();
   const threshold = Math.max((sorted[Math.floor(frames * 0.2)] ?? 0) * 4, 0.009);
-  let loud = 0;
-  for (let f = 0; f < frames; f++) if (energy[f] > threshold) loud++;
-  const mean = frames > 0 ? loud / frames : 0;
+  const loud = new Uint8Array(frames);
+  let count = 0;
+  for (let f = 0; f < frames; f++) {
+    loud[f] = energy[f] > threshold ? 1 : 0;
+    count += loud[f];
+  }
+  const mean = frames > 0 ? count / frames : 0;
   const prefix = new Float64Array(frames + 1);
-  for (let f = 0; f < frames; f++) prefix[f + 1] = prefix[f] + (energy[f] > threshold ? 1 : 0) - mean;
-  return { frame: FRAME, prefix };
+  for (let f = 0; f < frames; f++) prefix[f + 1] = prefix[f] + loud[f] - mean;
+  return { frame: FRAME, loud, prefix };
 }
 
 /** Stretches of speech, in seconds from the timeline's +00:00. */
@@ -170,12 +181,15 @@ function alignBySpeech(activity: SoundActivity, duration: number, session: Sessi
  * pressed as the call ended, so the recording and the session end together.
  */
 export function alignAudio(audio: AudioInfo, session: SessionClock, speech?: CallSpeech): SessionOffset {
-  const bySpeech = speech && audio.activity ? alignBySpeech(audio.activity, audio.duration, session, speech) : null;
+  const canMatch = !!speech && !!audio.activity && speech.agent.length >= 3;
+  const bySpeech = canMatch ? alignBySpeech(audio.activity!, audio.duration, session, speech!) : null;
   if (bySpeech) return bySpeech;
 
   const recordingEndMs = audio.startedAt + audio.duration * 1000;
-  if (audio.startedAt < session.end && recordingEndMs > session.start) {
-    return { seconds: (session.zero - audio.startedAt) / 1000, method: 'clock' };
-  }
-  return { seconds: audio.duration - (session.end - session.zero) / 1000, method: 'length' };
+  const fallback: SessionOffset =
+    audio.startedAt < session.end && recordingEndMs > session.start
+      ? { seconds: (session.zero - audio.startedAt) / 1000, method: 'clock' }
+      : { seconds: audio.duration - (session.end - session.zero) / 1000, method: 'length' };
+  // The speech was there to match and did not: say so rather than trust a guess.
+  return canMatch ? { ...fallback, unmatched: true } : fallback;
 }

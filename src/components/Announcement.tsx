@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { AlertTriangle, Sparkles } from 'lucide-react';
 
 // Bump this key when a new announcement should re-appear for everyone.
-const STORAGE_KEY = 'ai-json-organizer:announcement:audio-jumps-v1';
+const STORAGE_KEY = 'ai-json-organizer:announcement:silences-v1';
 
 export function Announcement() {
   const [visible, setVisible] = useState(() => {
@@ -31,25 +31,32 @@ export function Announcement() {
       </div>
       <div className="announcement-body">
         <h3 className="announcement-title">Quick update</h3>
-        <p>Timestamps on the timeline now work with your audio:</p>
+        <p>The tool now measures the silences in your recording:</p>
         <ul>
           <li>
-            Click a timestamp to move the audio to where that line starts being said. The page goes up to
-            the player, and Space plays from there. The timestamp itself still shows when the line finished.
+            <strong>Silence on every turn.</strong> With the recording and the JSON loaded, each turn in the
+            timeline shows the silence before the reply, as heard in the recording, for example "6.0 s silence
+            before Billing replied". Click it to hear it.
           </li>
           <li>
-            The tool finds the call in your recording by matching who spoke when, so it works with downloaded
-            and trimmed files too.
+            <strong>CN-Timing suggestion.</strong> A new card under the Audio panel suggests a CN-Timing rating
+            from the agent's silences, says why, and lists the silences behind it. The opening hello is not
+            counted.
           </li>
           <li>
-            If a jump is a little off, click the wave where the line really starts and press{' '}
-            <strong>Line up here</strong>. Every timestamp moves with it.
+            <strong>Recording first, JSON later.</strong> Once you add a recording on the first page, click{' '}
+            <strong>Continue with just the recording</strong> to trim it, download it and see its silences
+            before you have the JSON. Add the JSON on the same page when it arrives.
           </li>
           <li>
-            Fixed: some user lines had no timestamp or showed their text twice, and lines shown together in
-            one row now have a space between them.
+            <strong>Wrong recording?</strong> You now get a warning when the recording and the JSON don't seem
+            to be from the same call.
           </li>
         </ul>
+        <p className="announcement-warning">
+          <AlertTriangle />
+          <strong>The silence calculator can make mistakes. Please double-check before rating.</strong>
+        </p>
         <div className="announcement-actions">
           <button className="btn-secondary" onClick={dismissForever}>
             Never show again

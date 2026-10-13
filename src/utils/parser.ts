@@ -1,5 +1,5 @@
 import { readSpeechTiming } from './speechTiming';
-import type { CallSpeech } from './speechTiming';
+import type { CallSpeech, SpokenLine } from './speechTiming';
 
 export type EnvironmentMode = 'pre-prod' | 'prod single agent' | 'prod multi agent';
 
@@ -32,6 +32,8 @@ export interface OrganizedTimeline {
   sessionSpan?: { start: number; end: number };
   /** Who was speaking when, from the trace, to find the call inside a recording. */
   speech?: CallSpeech;
+  /** Every line as said, with its start, before same-speaker lines are joined into rows. */
+  spokenLines?: SpokenLine[];
   rawJsonText?: string;
   hasEnvironmentMismatch?: boolean;
   referenceData?: Record<string, unknown>;
@@ -707,6 +709,7 @@ export function parseAITrainingJSON(
     duration: durationStr,
     sessionSpan,
     speech: speechTiming?.speech,
+    spokenLines: speechTiming?.lines,
     hasEnvironmentMismatch,
     referenceData: Object.keys(referenceData).length > 0 ? referenceData : undefined,
     transcriptNotes: checkTranscript(data, finalEvents, repair),

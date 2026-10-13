@@ -435,6 +435,60 @@ input, textarea, select {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- Recording first, JSON later ---------- */
+
+.recording-only {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-glass);
+}
+
+.recording-only-hint {
+  flex: 1 1 18rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.add-session-hint {
+  margin: 0 0 1rem;
+  max-width: 78ch;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.add-session-hint strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.add-session-pick {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 0.9rem;
+  margin-bottom: 0.9rem;
+}
+
+.add-session-or {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.add-session-paste {
+  min-height: 6.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.add-session-error {
+  margin-top: 0.9rem;
+}
+
 /* ---------- Announcement banner ---------- */
 
 .announcement {
@@ -499,6 +553,26 @@ input, textarea, select {
 .announcement-body strong {
   color: var(--foreground);
   font-weight: 600;
+}
+
+.announcement-body p.announcement-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  padding: 0.55rem 0.8rem;
+  max-width: none;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, transparent);
+  background: color-mix(in srgb, var(--warning) 12%, transparent);
+  color: var(--foreground);
+}
+
+.announcement-warning svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  color: var(--warning);
 }
 
 .announcement-actions {
@@ -3766,6 +3840,35 @@ html { scroll-behavior: smooth; }
   background: var(--border-glass);
 }
 
+/* The quiet before the reply, as heard in the recording; plays it when clicked. */
+.turn-silence {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.12rem 0.55rem;
+  border: 1px solid var(--border-glass);
+  border-radius: 999px;
+  background: var(--surface-solid);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.turn-silence:hover,
+.turn-silence:focus-visible {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
+
+.turn-silence .btn-icon-sm {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
 /* Opaque, so it masks the spine where it crosses it instead of sitting on top. */
 .turn-divider-label {
   position: relative;
@@ -3795,6 +3898,237 @@ html { scroll-behavior: smooth; }
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+/* Silences in a recording loaded without its session */
+.audio-silences {
+  margin: -0.3rem 0 0.9rem;
+}
+
+.audio-silences-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.audio-silences-summary .btn-icon-sm {
+  align-self: center;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-right: 0.15rem;
+}
+
+.audio-silences-summary strong {
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.audio-silence-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-height: 7.5rem;
+  overflow-y: auto;
+}
+
+.audio-silence {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--border-glass);
+  border-radius: 999px;
+  background: var(--surface-solid);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.audio-silence:hover,
+.audio-silence:focus-visible {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
+
+.audio-silence-at {
+  font-family: var(--font-mono);
+}
+
+.audio-silence-length {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+/* ---------- CN-Timing suggestion ---------- */
+
+.cn-timing {
+  padding: 1.1rem 1.5rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.cn-timing-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 0.9rem;
+}
+
+.cn-timing-head .reference-title-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.cn-timing-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-control);
+  border: 1px solid color-mix(in srgb, var(--cn-colour) 45%, transparent);
+  background: color-mix(in srgb, var(--cn-colour) 12%, transparent);
+  color: var(--cn-colour);
+  font-variant-numeric: tabular-nums;
+}
+
+.cn-timing-score strong {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.cn-timing-score span {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.score-5, .score-4 { --cn-colour: var(--success); }
+.score-3 { --cn-colour: var(--warning); }
+.score-2, .score-1 { --cn-colour: var(--destructive); }
+
+.cn-timing-reason {
+  max-width: 82ch;
+  margin: 0 0 0.7rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--foreground);
+}
+
+.cn-timing-subtitle {
+  margin: 1.1rem 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cn-timing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cn-timing-silence {
+  display: grid;
+  grid-template-columns: 4.2rem 3.4rem 1fr auto;
+  align-items: baseline;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cn-timing-silence:hover,
+.cn-timing-silence:focus-visible {
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
+
+.cn-timing-at {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.cn-timing-length {
+  color: var(--foreground);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cn-timing-what {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cn-timing-level {
+  min-width: 1.6rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--cn-colour);
+  background: color-mix(in srgb, var(--cn-colour) 12%, transparent);
+}
+
+.cn-timing-stats {
+  margin: 0.9rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.cn-timing-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+  background: color-mix(in srgb, var(--warning) 9%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.cn-timing-warning .btn-icon-sm {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: var(--warning);
+}
+
+.cn-timing-warning p {
+  margin: 0;
+}
+
+.cn-timing-warning strong {
+  color: var(--foreground);
+}
+
+@media (max-width: 620px) {
+  .cn-timing-silence {
+    grid-template-columns: auto auto 1fr auto;
+  }
+  .cn-timing-level {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  .cn-timing-what {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }
 
 /* Lining a timestamp up with the audio by hand */

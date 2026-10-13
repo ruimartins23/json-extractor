@@ -20,10 +20,20 @@ export interface CallSpeech {
   agent: [number, number][];
 }
 
+/** One line as it was said, before the timeline joins a speaker's lines into one row. */
+export interface SpokenLine {
+  role: string;
+  text: string;
+  /** When it starts being said, in ms since the epoch. */
+  start: number;
+}
+
 export interface SpeechTiming {
   /** When each transcript chunk's line starts being said, keyed by the chunk object. */
   starts: Map<object, number>;
   speech: CallSpeech;
+  /** Every line with a known start, in the order they were said. */
+  lines: SpokenLine[];
 }
 
 /** A stretch of agent voice, in ms since the epoch. */
@@ -149,14 +159,19 @@ export function readSpeechTiming(data: unknown): SpeechTiming | null {
   const callStart = Math.min(...turns.map(t => t.start));
   const starts = new Map<object, number>();
   const speech: CallSpeech = { user: [], agent: [] };
-  const mark = (chunks: object[], at: number) => chunks.forEach(chunk => starts.set(chunk, at));
+  const spoken: SpokenLine[] = [];
+  const mark = (line: Line, at: number) => {
+    line.chunks.forEach(chunk => starts.set(chunk, at));
+    const text = line.chunks.map(chunk => (chunk as { transcript: string }).transcript).join('').trim();
+    spoken.push({ role: line.role, text, start: at });
+  };
 
   turns.forEach((turn, t) => {
     turn.vads.forEach(vad => {
       if (!isNaN(vad.end)) speech.user.push([callStart + vad.start, callStart + vad.end]);
     });
     const said = turn.lines.find(line => line.role.toLowerCase() === 'user');
-    if (said && turn.vads.length > 0) mark(said.chunks, callStart + turn.vads[0].start);
+    if (said && turn.vads.length > 0) mark(said, callStart + turn.vads[0].start);
     turn.voices.forEach(voice => speech.agent.push([voice.start, voice.start + voice.duration]));
 
     assigned[t].forEach((lines, voice) => {
@@ -173,11 +188,11 @@ export function readSpeechTiming(data: unknown): SpeechTiming | null {
           start = Math.max(lines[i - 1].at, line.at - (voice.duration - used));
         }
         used += Math.max(0, line.at - start);
-        mark(line.chunks, start);
+        mark(line, start);
       });
     });
   });
 
   if (speech.user.length === 0 && speech.agent.length === 0) return null;
-  return { starts, speech };
+  return { starts, speech, lines: spoken.sort((a, b) => a.start - b.start) };
 }

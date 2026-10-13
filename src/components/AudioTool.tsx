@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { AudioLines, ChevronDown, Play, Pause, Scissors, RotateCcw, Crosshair, Undo2 } from 'lucide-react';
+import { AudioLines, ChevronDown, Play, Pause, Scissors, RotateCcw, Crosshair, Undo2, Hourglass } from 'lucide-react';
 import { decodeAudioFile, encodeAudio, waveformPeaks, formatClock } from '../utils/audio';
 import type { AudioFormat } from '../utils/audio';
 import { recordingStartOf } from '../utils/recordingStore';
 import { soundActivity } from '../utils/audioSync';
+import { findSilences } from '../utils/silence';
 import type { AudioInfo, SessionOffset } from '../utils/audioSync';
 
 interface AudioToolProps {
@@ -22,6 +23,8 @@ interface AudioToolProps {
   sessionOffset?: SessionOffset | null;
   /** Lines know when they start being said, so their timestamps jump there. */
   linesStartJumps?: boolean;
+  /** No session yet: list the recording's silences, since there are no turns to show them on. */
+  listSilences?: boolean;
   /** The last timestamp clicked on the timeline, which the rater can line up by hand. */
   lineUpLabel?: string | null;
   /** That timestamp really happens at this many seconds into the recording. */
@@ -38,7 +41,7 @@ function preciseClock(seconds: number): string {
   return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
 }
 
-export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange, seekTo, onAudioInfo, sessionOffset, linesStartJumps, lineUpLabel, onLineUp, onUndoLineUp }: AudioToolProps) {
+export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange, seekTo, onAudioInfo, sessionOffset, linesStartJumps, listSilences, lineUpLabel, onLineUp, onUndoLineUp }: AudioToolProps) {
   const [open, setOpen] = useState(!!initialFile);
   const [buffer, setBuffer] = useState<AudioBuffer | null>(null);
   const [sourceName, setSourceName] = useState('');
@@ -123,6 +126,18 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   useEffect(() => {
     onAudioInfo?.(buffer && activity && startedAt !== null ? { duration: buffer.duration, startedAt, activity } : null);
   }, [buffer, activity, startedAt, onAudioInfo]);
+
+  const silences = useMemo(() => (listSilences && activity ? findSilences(activity) : []), [listSilences, activity]);
+  const longest = silences.reduce<{ from: number; to: number } | null>(
+    (best, s) => (!best || s.to - s.from > best.to - best.from ? s : best),
+    null,
+  );
+  /** Puts the cursor a second before a silence, so the end of what came before is heard too. */
+  const hearSilence = (from: number) => {
+    stopPlayback();
+    setCursor(Math.max(0, from - 1));
+    trackRef.current?.focus({ preventScroll: true });
+  };
 
   // A timestamp clicked on the timeline moves the cursor exactly as a click on
   // the wave does: playback stops, the cursor moves, the trim edges stay put.
@@ -469,6 +484,44 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
                     <span className="audio-lineup-hint">
                       Line not here? Click the wave where it really starts, or press this while it plays.
                     </span>
+                  )}
+                </div>
+              )}
+
+              {listSilences && (
+                <div className="audio-silences">
+                  <p className="trim-help audio-silences-summary">
+                    <Hourglass className="btn-icon-sm" />
+                    {silences.length === 0 ? (
+                      'No silences of a second or more in this recording.'
+                    ) : (
+                      <>
+                        {silences.length} {silences.length === 1 ? 'silence' : 'silences'} of a second or more
+                        {longest && (
+                          <>
+                            , the longest <strong>{(longest.to - longest.from).toFixed(1)} s</strong> at{' '}
+                            {preciseClock(longest.from)}
+                          </>
+                        )}
+                        . Click one to hear it. Add the JSON to see who replied after each one.
+                      </>
+                    )}
+                  </p>
+                  {silences.length > 0 && (
+                    <div className="audio-silence-list">
+                      {silences.map(silence => (
+                        <button
+                          key={silence.from}
+                          type="button"
+                          className="audio-silence"
+                          title={`Quiet from ${preciseClock(silence.from)} to ${preciseClock(silence.to)}. Click to hear it.`}
+                          onClick={() => hearSilence(silence.from)}
+                        >
+                          <span className="audio-silence-at">{preciseClock(silence.from)}</span>
+                          <span className="audio-silence-length">{(silence.to - silence.from).toFixed(1)} s</span>
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}

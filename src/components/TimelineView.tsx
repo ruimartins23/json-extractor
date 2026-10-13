@@ -3,11 +3,15 @@ import type { CSSProperties } from 'react';
 import { endSessionIssue } from '../utils/parser';
 import { agentOffset } from '../utils/agentColour';
 import { computeTurns } from '../utils/turns';
+import { turnSilences } from '../utils/silence';
 import { alignAudio } from '../utils/audioSync';
 import type { AudioInfo, SessionOffset } from '../utils/audioSync';
 import type { OrganizedTimeline, ParsedEvent, EnvironmentMode, ParserConfig } from '../utils/parser';
 import { ReferenceDataPanel } from './ReferenceDataPanel';
 import { ScenarioCheck } from './ScenarioCheck';
+import { AddSessionCard } from './AddSessionCard';
+import { CnTimingCard } from './CnTimingCard';
+import { suggestCnTiming } from '../utils/cnTiming';
 import { AudioTool } from './AudioTool';
 import type { AudioFormat } from '../utils/audio';
 import { clearStoredRecording } from '../utils/recordingStore';
@@ -15,7 +19,7 @@ import { findFixtureMatch } from '../utils/referenceData';
 import type { FixtureFocus } from '../utils/referenceData';
 import {
   Activity, Copy, Download, AlertTriangle, Search, MessageSquare, MessagesSquare, Braces,
-  ArrowLeftRight, ArrowRight, ChevronsUpDown, ChevronsDownUp, Check, X, StickyNote,
+  ArrowLeftRight, ArrowRight, ChevronsUpDown, ChevronsDownUp, Check, X, StickyNote, Hourglass,
 } from 'lucide-react';
 
 interface TimelineViewProps {
@@ -29,6 +33,13 @@ interface TimelineViewProps {
   scenario?: { num: number; gender: 'male' | 'female' };
   /** Recording picked on the upload page, if the user attached one there. */
   mediaFile?: File | null;
+  /**
+   * Only the recording is loaded so far: the page shows the audio tools and asks
+   * for the JSON, then becomes the full session view in place once it is added.
+   */
+  audioOnly?: boolean;
+  /** Reads the JSON added later; returns a reason it was not opened, or null when it was. */
+  onAddJson?: (json: unknown) => string | null;
 }
 
 const MODE_LABELS: Record<string, string> = {
@@ -318,6 +329,8 @@ export function TimelineView({
   onConfigChange,
   scenario,
   mediaFile,
+  audioOnly = false,
+  onAddJson,
 }: TimelineViewProps) {
   const [showKeywords, setShowKeywords] = useState(false);
   const [copySummaryLabel, copySummary] = useCopyToClipboard('Copy summary');
@@ -489,6 +502,29 @@ export function TimelineView({
     setSeekAnnouncement('Back to the automatic line-up');
   }, []);
 
+  // How long each turn's reply took to start, measured in the recording's sound.
+  // Only once the recording is truly lined up: on a guess, the gaps found would be
+  // wherever the guess happened to land.
+  const linedUp = audioAlignment?.method === 'speech' || audioAlignment?.method === 'manual';
+  const silences = useMemo(
+    () => (linedUp && audioInfo?.activity && audioSync && sessionStartMs !== null
+      ? turnSilences(data.events, turns.turnOf, sessionStartMs, audioInfo.activity, { agent: audioSync.lead, user: audioSync.userLead }, data.speech)
+      : null),
+    [linedUp, audioInfo, audioSync, sessionStartMs, data.events, data.speech, turns],
+  );
+  // A CN-Timing rating suggested from the agent's silences, once the recording is lined up.
+  const cnTiming = useMemo(
+    () => (linedUp && audioInfo?.activity && audioSync && sessionStartMs !== null && data.speech && data.spokenLines?.length
+      ? suggestCnTiming(data.spokenLines, data.speech, sessionStartMs, audioInfo.activity, { agent: audioSync.lead, user: audioSync.userLead })
+      : null),
+    [linedUp, audioInfo, audioSync, sessionStartMs, data.speech, data.spokenLines],
+  );
+  /** Moves the audio cursor to a moment in the recording itself. */
+  const seekRecording = useCallback((seconds: number) => {
+    setSeekRequest(prev => ({ seconds, nonce: (prev?.nonce ?? 0) + 1 }));
+    setSeekAnnouncement(`Audio cursor moved to ${audioClock(seconds)}`);
+  }, []);
+
   const handleDownloadJson = () => {
     if (data.rawJsonText) downloadFile(data.rawJsonText, summaryFileName);
   };
@@ -538,6 +574,15 @@ export function TimelineView({
 
   return (
     <div className="animate-fade-in" style={{ width: '100%' }}>
+      {/* One slot either way, so the Audio panel below keeps its place, and with it
+          the loaded recording and its trim, when the JSON arrives. */}
+      {audioOnly ? (
+        <AddSessionCard
+          readAs={`${MODE_LABELS[data.agentType] ?? data.agentType}${scenario ? `, scenario ${scenario.num} (${scenario.gender})` : ''}`}
+          onAddJson={json => onAddJson?.(json) ?? null}
+          onReset={onReset}
+        />
+      ) : (
       <div className="session-header glass">
         <div className="session-header-top">
           <h2 className="timeline-title">
@@ -654,6 +699,7 @@ export function TimelineView({
 
         </div>
       </div>
+      )}
 
       {data.transcriptNotes && data.transcriptNotes.length > 0 && (
         <div className="glass warning-banner info">
@@ -663,6 +709,21 @@ export function TimelineView({
             {data.transcriptNotes.map(note => (
               <p key={note}>{note}</p>
             ))}
+          </div>
+        </div>
+      )}
+
+      {audioAlignment?.unmatched && (
+        <div className="glass warning-banner">
+          <AlertTriangle className="icon" />
+          <div>
+            <h3>This recording doesn't seem to match this session</h3>
+            <p>
+              The session says who spoke when, and none of it lines up with the sound in this
+              recording, so it is probably from a different call. Check you loaded the right
+              recording and JSON. Until they match, timestamps only jump to an estimate and turns
+              show no silences.
+            </p>
           </div>
         </div>
       )}
@@ -690,10 +751,13 @@ export function TimelineView({
         onAudioInfo={setAudioInfo}
         sessionOffset={audioAlignment}
         linesStartJumps={data.events.some(e => e.spokenAt !== undefined)}
+        listSilences={audioOnly}
         lineUpLabel={seekTarget?.label ?? null}
         onLineUp={lineUpHere}
         onUndoLineUp={undoLineUp}
       />
+
+      {cnTiming && <CnTimingCard suggestion={cnTiming} onHear={seekRecording} />}
 
       <div className="export-section glass">
         <div className="export-header">
@@ -746,11 +810,18 @@ export function TimelineView({
           </div>
 
           <button
-            onClick={async () => { handleDownloadJson(); handleDownloadTranscript(); await handleDownloadAudio(); }}
+            onClick={async () => {
+              // With only the recording loaded, the audio is all there is to download.
+              if (!audioOnly) {
+                handleDownloadJson();
+                handleDownloadTranscript();
+              }
+              await handleDownloadAudio();
+            }}
             className="btn-primary"
           >
             <Download className="btn-icon" />
-            Download all
+            {audioOnly ? 'Download audio' : 'Download all'}
           </button>
         </div>
 
@@ -758,18 +829,18 @@ export function TimelineView({
           <div className="export-card">
             <span className="export-card-title">Raw JSON file</span>
             <span className="export-card-filename">{summaryFileName}</span>
-            <button onClick={handleDownloadJson} className="btn-secondary">
+            <button onClick={handleDownloadJson} className="btn-secondary" disabled={audioOnly}>
               <Download className="btn-icon" />
-              Download JSON
+              {audioOnly ? 'Add the JSON first' : 'Download JSON'}
             </button>
           </div>
 
           <div className="export-card">
             <span className="export-card-title">Transcript text</span>
             <span className="export-card-filename">{transcriptFileName}</span>
-            <button onClick={handleDownloadTranscript} className="btn-secondary">
+            <button onClick={handleDownloadTranscript} className="btn-secondary" disabled={audioOnly}>
               <Download className="btn-icon" />
-              Download transcript
+              {audioOnly ? 'Add the JSON first' : 'Download transcript'}
             </button>
           </div>
 
@@ -786,6 +857,7 @@ export function TimelineView({
         </div>
       </div>
 
+      {!audioOnly && (<>
       <div className="output-grid">
         <div className="summary-box glass">
           <div className="summary-box-header">
@@ -916,9 +988,12 @@ export function TimelineView({
         </div>
       </div>
 
+      </>)}
+
       {/* Says where the audio cursor went, since the player is usually off-screen. */}
       <p className="sr-only" aria-live="polite">{seekAnnouncement}</p>
 
+      {!audioOnly && (
       <div className="timeline-list">
         {visibleEvents.map(({ event, globalIndex }, idx) => {
           // A turn label goes in front of the first visible row of each turn. It
@@ -926,11 +1001,25 @@ export function TimelineView({
           // it still marks turns when transcripts are filtered out or a search is on.
           const turn = turns.turnOf[globalIndex];
           const startsTurn = turn > 0 && (idx === 0 || turns.turnOf[visibleEvents[idx - 1].globalIndex] !== turn);
+          const silence = startsTurn ? silences?.get(turn) : undefined;
+          const replier = silence?.replier === 'user' ? 'the user' : silence?.replier;
           return (
           <Fragment key={event.id || globalIndex}>
           {showTurns && startsTurn && (
             <div className="turn-divider">
               <span className="turn-divider-label">Turn {turn}</span>
+              {silence && (
+                // Starts a second early, so the end of what came before is heard too.
+                <button
+                  type="button"
+                  className="turn-silence"
+                  title={`Quiet in the recording from ${audioClock(silence.from)} to ${audioClock(silence.to)}, when ${replier} started. Click to hear it.`}
+                  onClick={() => seekRecording(Math.max(0, silence.from - 1))}
+                >
+                  <Hourglass className="btn-icon-sm" />
+                  {silence.seconds.toFixed(1)} s silence before {replier} replied
+                </button>
+              )}
             </div>
           )}
           <TimelineItem
@@ -972,6 +1061,7 @@ export function TimelineView({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

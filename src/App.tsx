@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Dropzone } from './components/Dropzone';
 import type { ScenarioSelection } from './components/Dropzone';
 import { TimelineView } from './components/TimelineView';
@@ -16,6 +16,13 @@ function App() {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   // Kept so the same file can be read again under a different environment.
   const [source, setSource] = useState<{ data: unknown; config: ParserConfig } | null>(null);
+  // Only a recording so far: how to read the JSON once it is added.
+  const [audioOnly, setAudioOnly] = useState<{ mode: EnvironmentMode; config: ParserConfig } | null>(null);
+  // Stable, so the session view does not take every render for a new file.
+  const noSession = useMemo<OrganizedTimeline>(
+    () => ({ agentType: audioOnly?.mode ?? 'prod single agent', events: [] }),
+    [audioOnly],
+  );
 
   /** Returns a reason to stay put, or null when the session opened. */
   const handleFileParsed = (
@@ -35,6 +42,31 @@ function App() {
     setMediaFile(media);
     setSource({ data, config });
     setTimelineData(parsed);
+    return null;
+  };
+
+  /** Opens the audio tools with just the recording; the JSON can follow. */
+  const startWithRecording = (
+    media: File,
+    mode: EnvironmentMode,
+    config: ParserConfig,
+    selectedScenario: ScenarioSelection,
+  ) => {
+    setScenario(selectedScenario);
+    setMediaFile(media);
+    setAudioOnly({ mode, config });
+  };
+
+  /** The JSON added after the recording, read with the settings chosen at the start. */
+  const addJson = (data: unknown): string | null => {
+    if (!audioOnly) return null;
+    const parsed = parseAITrainingJSON(data, audioOnly.mode, audioOnly.config);
+    if (parsed.events.length === 0) {
+      return 'That file parsed fine but no conversation or tool calls were found in it. Check this is the full JSON for this session. To read it as another environment, start over and pick it on the first page.';
+    }
+    setSource({ data, config: audioOnly.config });
+    setTimelineData(parsed);
+    setAudioOnly(null);
     return null;
   };
 
@@ -64,21 +96,24 @@ function App() {
     setTimelineData(null);
     setMediaFile(null);
     setSource(null);
+    setAudioOnly(null);
   };
+
+  const inSession = timelineData !== null || audioOnly !== null;
 
   return (
     <div className="gradient-bg app-container">
       <a className="skip-link" href="#main">Skip to content</a>
       <AppearanceMenu />
 
-      <header className={`header animate-fade-in ${timelineData ? 'compact' : ''}`}>
+      <header className={`header animate-fade-in ${inSession ? 'compact' : ''}`}>
         <div className="header-icon-container glass">
           <BrainCircuit className="header-icon" />
         </div>
         <h1>
           JSON <span className="gradient-text">Extractor</span>
         </h1>
-        {!timelineData && (
+        {!inSession && (
           <p>
             Load an agent session to step through its transcript, tool calls and transfers.
           </p>
@@ -87,11 +122,13 @@ function App() {
 
       <main className="main-content" id="main">
         <Announcement />
-        {!timelineData ? (
-          <Dropzone onFileParsed={handleFileParsed} />
+        {!inSession ? (
+          <Dropzone onFileParsed={handleFileParsed} onRecordingOnly={startWithRecording} />
         ) : (
           <TimelineView
-            data={timelineData}
+            data={timelineData ?? noSession}
+            audioOnly={!timelineData}
+            onAddJson={addJson}
             onReset={reset}
             onModeChange={changeMode}
             config={source?.config}

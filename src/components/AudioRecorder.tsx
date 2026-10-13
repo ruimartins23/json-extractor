@@ -280,8 +280,8 @@ export function AudioRecorder({
               {showSteps ? 'Hide the steps' : 'How does this work?'}
             </button>
             <span className="recorder-hint">
-              Captures your microphone and the agent voice into one file, ready to trim once you
-              load the JSON.
+              Captures your microphone and the agent voice into one file, ready to trim with or
+              without the JSON.
               {(gains.mic !== 1 || gains.tab !== 1) &&
                 ` Volumes are set to ${Math.round(gains.mic * 100)}% you and ${Math.round(gains.tab * 100)}% agent.`}
             </span>
