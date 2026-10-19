@@ -1,11 +1,19 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { AudioLines, ChevronDown, Play, Pause, Scissors, RotateCcw, Crosshair, Undo2, Hourglass } from 'lucide-react';
+import { AudioLines, ChevronDown, Play, Pause, Scissors, RotateCcw, Crosshair, Undo2, Hourglass, MapPin, Pencil, X } from 'lucide-react';
 import { decodeAudioFile, encodeAudio, waveformPeaks, formatClock } from '../utils/audio';
 import type { AudioFormat } from '../utils/audio';
 import { recordingStartOf } from '../utils/recordingStore';
 import { soundActivity } from '../utils/audioSync';
 import { findSilences } from '../utils/silence';
 import type { AudioInfo, SessionOffset } from '../utils/audioSync';
+
+/** A note a rater pinned to a moment in the recording. */
+export interface AudioMarker {
+  id: string;
+  /** Seconds into the recording. */
+  at: number;
+  text: string;
+}
 
 interface AudioToolProps {
   /** Recording attached on the upload page, loaded automatically when present. */
@@ -25,6 +33,8 @@ interface AudioToolProps {
   linesStartJumps?: boolean;
   /** No session yet: list the recording's silences, since there are no turns to show them on. */
   listSilences?: boolean;
+  /** Told whenever the markers change, so the timeline can show them too. */
+  onMarkersChange?: (markers: AudioMarker[]) => void;
   /** The last timestamp clicked on the timeline, which the rater can line up by hand. */
   lineUpLabel?: string | null;
   /** That timestamp really happens at this many seconds into the recording. */
@@ -41,10 +51,17 @@ function preciseClock(seconds: number): string {
   return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
 }
 
-export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange, seekTo, onAudioInfo, sessionOffset, linesStartJumps, listSilences, lineUpLabel, onLineUp, onUndoLineUp }: AudioToolProps) {
+export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange, seekTo, onAudioInfo, sessionOffset, linesStartJumps, listSilences, onMarkersChange, lineUpLabel, onLineUp, onUndoLineUp }: AudioToolProps) {
   const [open, setOpen] = useState(!!initialFile);
   const [buffer, setBuffer] = useState<AudioBuffer | null>(null);
   const [sourceName, setSourceName] = useState('');
+  const [markers, setMarkers] = useState<AudioMarker[]>([]);
+  const [draft, setDraft] = useState<{ id?: string; at: number; text: string } | null>(null);
+  // The marker last clicked on the wave, picked out in the list below.
+  const [picked, setPicked] = useState<string | null>(null);
+  const markerListRef = useRef<HTMLUListElement>(null);
+  // Markers are kept per recording in this browser, so a reload does not lose them.
+  const markerKeyRef = useRef<string | null>(null);
   const [start, setStart] = useState(0);
   const [end, setEnd] = useState(0);
   const [cursor, setCursor] = useState(0);
@@ -99,6 +116,15 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
       // minus the length. A recovered take carries its real start instead.
       setStartedAt(recordingStartOf(file) ?? file.lastModified - decoded.duration * 1000);
       setSourceName(file.name);
+      markerKeyRef.current = `ai-json-organizer:markers:${file.name}:${file.size}`;
+      let saved: AudioMarker[] = [];
+      try {
+        saved = JSON.parse(localStorage.getItem(markerKeyRef.current) ?? '[]');
+      } catch {
+        // Unreadable or blocked storage: start with none.
+      }
+      setMarkers(Array.isArray(saved) ? saved : []);
+      setDraft(null);
       setStart(0);
       setEnd(decoded.duration);
       setCursor(0);
@@ -136,6 +162,37 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   const hearSilence = (from: number) => {
     stopPlayback();
     setCursor(Math.max(0, from - 1));
+    trackRef.current?.focus({ preventScroll: true });
+  };
+
+  useEffect(() => {
+    onMarkersChange?.(markers);
+    if (!markerKeyRef.current) return;
+    try {
+      if (markers.length) localStorage.setItem(markerKeyRef.current, JSON.stringify(markers));
+      else localStorage.removeItem(markerKeyRef.current);
+    } catch {
+      // Storage refused: the markers still work until the page is closed.
+    }
+  }, [markers, onMarkersChange]);
+
+  const goTo = (at: number) => {
+    stopPlayback();
+    setCursor(at);
+    trackRef.current?.focus({ preventScroll: true });
+  };
+  const saveDraft = () => {
+    if (!draft) return;
+    const text = draft.text.trim();
+    if (text) {
+      setMarkers(list =>
+        (draft.id
+          ? list.map(m => (m.id === draft.id ? { ...m, text } : m))
+          : [...list, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, at: draft.at, text }]
+        ).sort((a, b) => a.at - b.at),
+      );
+    }
+    setDraft(null);
     trackRef.current?.focus({ preventScroll: true });
   };
 
@@ -278,7 +335,8 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   /** Clicking or dragging the wave moves the play cursor and nothing else. The
    *  two edges only move when their own handles are dragged. */
   const seekCursor = (e: React.PointerEvent) => {
-    if (!buffer) return;
+    // A right-click adds a marker instead.
+    if (!buffer || e.button !== 0) return;
     setCursor(timeAt(e.clientX));
     if (playing) stopPlayback();
     dragRef.current = 'cursor';
@@ -411,6 +469,10 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
                 onPointerMove={onTrackMove}
                 onPointerUp={endDrag}
                 onPointerCancel={endDrag}
+                onContextMenu={e => {
+                  e.preventDefault();
+                  if (buffer) setDraft({ at: timeAt(e.clientX), text: '' });
+                }}
               >
                 <canvas ref={canvasRef} className="audio-wave" onPointerDown={seekCursor} />
 
@@ -421,6 +483,35 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
                 <div className="audio-cursor" style={{ left: `${pct(playhead ?? cursor)}%` }}>
                   <span className="audio-cursor-grip" />
                 </div>
+
+                {markers.map(m => (
+                  <button
+                    type="button"
+                    key={m.id}
+                    className={`audio-marker ${picked === m.id ? 'picked' : ''} ${pct(m.at) > 70 ? 'flip' : ''}`}
+                    style={{ left: `${pct(m.at)}%` }}
+                    aria-label={`Marker at ${preciseClock(m.at)}: ${m.text}`}
+                    onPointerDown={e => {
+                      if (e.button !== 0) return;
+                      e.stopPropagation();
+                      goTo(m.at);
+                      setPicked(m.id);
+                      markerListRef.current
+                        ?.querySelector(`[data-marker="${m.id}"]`)
+                        ?.scrollIntoView({ block: 'nearest' });
+                    }}
+                  >
+                    <span className="audio-marker-flag" />
+                    <span className="audio-marker-label">
+                      {preciseClock(m.at)} · {m.text}
+                    </span>
+                  </button>
+                ))}
+                {draft && !draft.id && (
+                  <div className="audio-marker draft" style={{ left: `${pct(draft.at)}%` }}>
+                    <span className="audio-marker-flag" />
+                  </div>
+                )}
 
                 <div
                   className="audio-handle start"
@@ -442,8 +533,82 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
 
               <p className="trim-help">
                 Click anywhere on the wave to listen from there. Drag the two blue edges to set what
-                you keep: the lit part is what gets saved. Space plays and pauses.
+                you keep: the lit part is what gets saved. Space plays and pauses. Right-click the wave
+                to add a marker.
               </p>
+
+              {draft && (
+                <form
+                  className="marker-editor"
+                  onSubmit={e => {
+                    e.preventDefault();
+                    saveDraft();
+                  }}
+                >
+                  <MapPin className="btn-icon-sm" />
+                  <span className="marker-editor-at">
+                    {draft.id ? 'Edit marker' : 'New marker'} at {preciseClock(draft.at)}
+                  </span>
+                  <input
+                    className="text-input"
+                    autoFocus
+                    value={draft.text}
+                    placeholder="What happens here?"
+                    onChange={e => setDraft({ ...draft, text: e.target.value })}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') setDraft(null);
+                    }}
+                  />
+                  <button type="submit" className="btn-primary" disabled={!draft.text.trim()}>
+                    Save
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setDraft(null)}>
+                    Cancel
+                  </button>
+                </form>
+              )}
+
+              {markers.length > 0 && (
+                <div className="audio-markers">
+                  <p className="trim-help audio-markers-summary">
+                    <MapPin className="btn-icon-sm" />
+                    {markers.length} {markers.length === 1 ? 'marker' : 'markers'}. Click one to go there.
+                  </p>
+                  <ul className="audio-marker-list" ref={markerListRef}>
+                    {markers.map(m => (
+                      <li key={m.id} data-marker={m.id}>
+                        <button
+                          type="button"
+                          className={`audio-marker-item ${picked === m.id ? 'picked' : ''}`}
+                          onClick={() => {
+                            goTo(m.at);
+                            setPicked(m.id);
+                          }}
+                        >
+                          <span className="audio-marker-at">{preciseClock(m.at)}</span>
+                          <span className="audio-marker-text">{m.text}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          title="Edit"
+                          onClick={() => setDraft({ id: m.id, at: m.at, text: m.text })}
+                        >
+                          <Pencil />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          title="Delete"
+                          onClick={() => setMarkers(list => list.filter(x => x.id !== m.id))}
+                        >
+                          <X />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {sessionOffset && (
                 <p className="trim-help audio-sync-note">

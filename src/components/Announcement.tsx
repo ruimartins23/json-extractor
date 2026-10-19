@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, Sparkles } from 'lucide-react';
 
 // Bump this key when a new announcement should re-appear for everyone.
-const STORAGE_KEY = 'ai-json-organizer:announcement:silences-v1';
+const STORAGE_KEY = 'ai-json-organizer:announcement:markers-v1';
 
 export function Announcement() {
   const [visible, setVisible] = useState(() => {
@@ -31,26 +31,26 @@ export function Announcement() {
       </div>
       <div className="announcement-body">
         <h3 className="announcement-title">Quick update</h3>
-        <p>The tool now measures the silences in your recording:</p>
+        <p>New: markers on the audio.</p>
         <ul>
           <li>
-            <strong>Silence on every turn.</strong> With the recording and the JSON loaded, each turn in the
-            timeline shows the silence before the reply, as heard in the recording, for example "6.0 s silence
-            before Billing replied". Click it to hear it.
+            <strong>Add a marker.</strong> Right-click anywhere on the audio wave, type what happens there
+            (for example a pilot tag) and press Enter.
           </li>
           <li>
-            <strong>CN-Timing suggestion.</strong> A new card under the Audio panel suggests a CN-Timing rating
-            from the agent's silences, says why, and lists the silences behind it. The opening hello is not
-            counted.
+            <strong>Find it again.</strong> Markers show on the wave in their own colour: hover one to read it,
+            click it to go there. They are also listed under the wave, where you can edit or delete them.
           </li>
           <li>
-            <strong>Recording first, JSON later.</strong> Once you add a recording on the first page, click{' '}
-            <strong>Continue with just the recording</strong> to trim it, download it and see its silences
-            before you have the JSON. Add the JSON on the same page when it arrives.
+            <strong>In the timeline.</strong> With the JSON loaded, each marker also appears in the timeline
+            where it falls in the call. Click it to hear that moment.
           </li>
           <li>
-            <strong>Wrong recording?</strong> You now get a warning when the recording and the JSON don't seem
-            to be from the same call.
+            Markers are kept in your browser for that recording, so a reload doesn't lose them.
+          </li>
+          <li>
+            In case you missed it: each turn shows the silence before its reply, and a CN-Timing card suggests a
+            rating from those silences.
           </li>
         </ul>
         <p className="announcement-warning">

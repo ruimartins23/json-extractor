@@ -13,13 +13,14 @@ import { AddSessionCard } from './AddSessionCard';
 import { CnTimingCard } from './CnTimingCard';
 import { suggestCnTiming } from '../utils/cnTiming';
 import { AudioTool } from './AudioTool';
+import type { AudioMarker } from './AudioTool';
 import type { AudioFormat } from '../utils/audio';
 import { clearStoredRecording } from '../utils/recordingStore';
 import { findFixtureMatch } from '../utils/referenceData';
 import type { FixtureFocus } from '../utils/referenceData';
 import {
   Activity, Copy, Download, AlertTriangle, Search, MessageSquare, MessagesSquare, Braces,
-  ArrowLeftRight, ArrowRight, ChevronsUpDown, ChevronsDownUp, Check, X, StickyNote, Hourglass,
+  ArrowLeftRight, ArrowRight, ChevronsUpDown, ChevronsDownUp, Check, X, StickyNote, Hourglass, MapPin,
 } from 'lucide-react';
 
 interface TimelineViewProps {
@@ -519,6 +520,8 @@ export function TimelineView({
       : null),
     [linedUp, audioInfo, audioSync, sessionStartMs, data.speech, data.spokenLines],
   );
+  // Markers pinned on the wave, shown in the timeline where they fall in the call.
+  const [markers, setMarkers] = useState<AudioMarker[]>([]);
   /** Moves the audio cursor to a moment in the recording itself. */
   const seekRecording = useCallback((seconds: number) => {
     setSeekRequest(prev => ({ seconds, nonce: (prev?.nonce ?? 0) + 1 }));
@@ -562,6 +565,14 @@ export function TimelineView({
     (event.messageContent || '').toLowerCase().includes(query) ||
     String(event.raw?.agent || '').toLowerCase().includes(query) ||
     (event.type === 'transfer' && getTransferTarget(event).toLowerCase().includes(query));
+
+  /** Where an event is heard in the recording, in seconds, or null without a line-up. */
+  const heardAt = (event: ParsedEvent): number | null => {
+    if (!linedUp || !audioSync || sessionStartMs === null || !event.timestamp) return null;
+    const isUserLine = event.type === 'message' && (event.messageRole ?? '').toLowerCase() === 'user';
+    const ms = event.spokenAt ?? new Date(event.timestamp).getTime();
+    return (ms - sessionStartMs) / 1000 + (isUserLine ? audioSync.userLead : audioSync.lead);
+  };
 
   const visibleEvents = data.events
     .map((event, globalIndex) => ({ event, globalIndex }))
@@ -752,6 +763,7 @@ export function TimelineView({
         sessionOffset={audioAlignment}
         linesStartJumps={data.events.some(e => e.spokenAt !== undefined)}
         listSilences={audioOnly}
+        onMarkersChange={setMarkers}
         lineUpLabel={seekTarget?.label ?? null}
         onLineUp={lineUpHere}
         onUndoLineUp={undoLineUp}
@@ -993,7 +1005,32 @@ export function TimelineView({
       {/* Says where the audio cursor went, since the player is usually off-screen. */}
       <p className="sr-only" aria-live="polite">{seekAnnouncement}</p>
 
-      {!audioOnly && (
+      {!audioOnly && (() => {
+      // Each marker goes before the first visible row heard after it; the rest at the end.
+      const markersBefore = new Map<number, AudioMarker[]>();
+      const trailing: AudioMarker[] = [];
+      if (linedUp) {
+        const times = visibleEvents.map(({ event }) => heardAt(event));
+        for (const m of markers) {
+          const idx = times.findIndex(t => t !== null && t > m.at);
+          if (idx < 0) trailing.push(m);
+          else markersBefore.set(idx, [...(markersBefore.get(idx) ?? []), m]);
+        }
+      }
+      const markerRow = (m: AudioMarker) => (
+        <button
+          key={`marker-${m.id}`}
+          type="button"
+          className="timeline-marker"
+          title="Marker on the audio. Click to hear it."
+          onClick={() => seekRecording(m.at)}
+        >
+          <MapPin className="btn-icon-sm" />
+          <span className="timeline-marker-at">{audioClock(m.at)}</span>
+          <span className="timeline-marker-text">{m.text}</span>
+        </button>
+      );
+      return (
       <div className="timeline-list">
         {visibleEvents.map(({ event, globalIndex }, idx) => {
           // A turn label goes in front of the first visible row of each turn. It
@@ -1005,6 +1042,7 @@ export function TimelineView({
           const replier = silence?.replier === 'user' ? 'the user' : silence?.replier;
           return (
           <Fragment key={event.id || globalIndex}>
+          {markersBefore.get(idx)?.map(markerRow)}
           {showTurns && startsTurn && (
             <div className="turn-divider">
               <span className="turn-divider-label">Turn {turn}</span>
@@ -1055,13 +1093,15 @@ export function TimelineView({
             No supported tools or events found in this JSON file.
           </div>
         )}
+        {trailing.map(markerRow)}
         {data.events.length > 0 && visibleEvents.length === 0 && (
           <div className="timeline-empty glass">
             No events match the current filters.
           </div>
         )}
       </div>
-      )}
+      );
+      })()}
     </div>
   );
 }
