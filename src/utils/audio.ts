@@ -14,17 +14,23 @@ export async function decodeAudioFile(file: File): Promise<AudioBuffer> {
   }
 }
 
-/** Peak envelope for drawing a waveform, one value per bucket. */
+/**
+ * Peak envelope for drawing a waveform, one value per bucket, taken across every
+ * channel: a stereo call can carry one speaker per side, and both must show.
+ */
 export function waveformPeaks(buffer: AudioBuffer, buckets: number): number[] {
-  const channel = buffer.getChannelData(0);
-  const per = Math.max(1, Math.floor(channel.length / buckets));
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, c) => buffer.getChannelData(c));
+  const length = channels[0]?.length ?? 0;
+  const per = Math.max(1, Math.floor(length / buckets));
   const peaks: number[] = [];
   for (let i = 0; i < buckets; i++) {
     const start = i * per;
     let peak = 0;
-    for (let j = start; j < start + per && j < channel.length; j++) {
-      const v = Math.abs(channel[j]);
-      if (v > peak) peak = v;
+    for (const channel of channels) {
+      for (let j = start; j < start + per && j < length; j++) {
+        const v = Math.abs(channel[j]);
+        if (v > peak) peak = v;
+      }
     }
     peaks.push(peak);
   }
