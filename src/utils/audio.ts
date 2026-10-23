@@ -37,6 +37,51 @@ export function waveformPeaks(buffer: AudioBuffer, buckets: number): number[] {
   return peaks;
 }
 
+/**
+ * A copy of the recording the page's audio player can play at any speed with
+ * the pitch kept: 16-bit WAV, at most 24 kHz (plenty for speech), both channels.
+ * Made from the decoded audio rather than the file itself, so seeking lands on
+ * exactly the moment the wave shows, even for recorder takes that carry no index.
+ */
+export async function playbackUrl(buffer: AudioBuffer): Promise<string> {
+  const rate = Math.min(buffer.sampleRate, 24000);
+  const channels = Math.min(2, buffer.numberOfChannels);
+  const offline = new OfflineAudioContext(channels, Math.max(1, Math.ceil(buffer.duration * rate)), rate);
+  const source = offline.createBufferSource();
+  source.buffer = buffer;
+  source.connect(offline.destination);
+  source.start();
+  const rendered = await offline.startRendering();
+
+  const frames = rendered.length;
+  const data = Array.from({ length: channels }, (_, c) => rendered.getChannelData(c));
+  const bytes = new ArrayBuffer(44 + frames * channels * 2);
+  const view = new DataView(bytes);
+  const text = (at: number, value: string) => [...value].forEach((ch, i) => view.setUint8(at + i, ch.charCodeAt(0)));
+  text(0, 'RIFF');
+  view.setUint32(4, 36 + frames * channels * 2, true);
+  text(8, 'WAVE');
+  text(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, rate, true);
+  view.setUint32(28, rate * channels * 2, true);
+  view.setUint16(32, channels * 2, true);
+  view.setUint16(34, 16, true);
+  text(36, 'data');
+  view.setUint32(40, frames * channels * 2, true);
+  let at = 44;
+  for (let i = 0; i < frames; i++) {
+    for (let c = 0; c < channels; c++) {
+      const v = Math.max(-1, Math.min(1, data[c][i]));
+      view.setInt16(at, v < 0 ? v * 0x8000 : v * 0x7fff, true);
+      at += 2;
+    }
+  }
+  return URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }));
+}
+
 export function formatClock(seconds: number): string {
   const s = Math.max(0, Math.round(seconds));
   return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;

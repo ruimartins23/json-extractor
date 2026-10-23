@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { AudioLines, ChevronDown, Play, Pause, Scissors, RotateCcw, Crosshair, Undo2, Hourglass, MapPin, Pencil, X } from 'lucide-react';
-import { decodeAudioFile, encodeAudio, waveformPeaks, formatClock } from '../utils/audio';
+import { decodeAudioFile, encodeAudio, waveformPeaks, formatClock, playbackUrl } from '../utils/audio';
 import type { AudioFormat } from '../utils/audio';
 import { recordingStartOf } from '../utils/recordingStore';
 import { soundActivity } from '../utils/audioSync';
@@ -76,14 +76,12 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   const inputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const ctxRef = useRef<AudioContext | null>(null);
-  const nodeRef = useRef<AudioBufferSourceNode | null>(null);
+  /** Plays through the page's own audio player, which keeps the pitch when sped up. */
+  const playerRef = useRef<HTMLAudioElement | null>(null);
+  const [playable, setPlayable] = useState<string | null>(null);
   const rafRef = useRef<number | null>(null);
   const dragRef = useRef<Drag>(null);
   const rateRef = useRef(1);
-  /** Where playback was anchored: a position in the clip, and the clock time it
-   *  started from. Rebased on a speed change so the playhead stays honest. */
-  const anchorRef = useRef({ at: 0, clock: 0 });
   /** The last seek request already acted on, so a new file never replays an old one. */
   const handledSeekRef = useRef<number | null>(null);
   const [revealed, setRevealed] = useState(0);
@@ -94,8 +92,7 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   const pct = (t: number) => (duration ? (t / duration) * 100 : 0);
 
   const stopPlayback = useCallback(() => {
-    nodeRef.current?.stop();
-    nodeRef.current = null;
+    playerRef.current?.pause();
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     setPlaying(false);
@@ -103,6 +100,38 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   }, []);
 
   useEffect(() => stopPlayback, [stopPlayback]);
+
+  // A copy of each recording the player can speed up without changing its pitch.
+  useEffect(() => {
+    if (!buffer) return;
+    let url: string | null = null;
+    let cancelled = false;
+    void playbackUrl(buffer).then(made => {
+      if (cancelled) URL.revokeObjectURL(made);
+      else {
+        url = made;
+        setPlayable(made);
+      }
+    });
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [buffer]);
+
+  useEffect(() => {
+    if (!playable) return;
+    const player = playerRef.current ?? new Audio();
+    playerRef.current = player;
+    // Faster without sounding higher: on by default, but said outright for older browsers.
+    const keep = player as HTMLAudioElement & { webkitPreservesPitch?: boolean; mozPreservesPitch?: boolean };
+    keep.preservesPitch = true;
+    keep.webkitPreservesPitch = true;
+    keep.mozPreservesPitch = true;
+    player.preload = 'auto';
+    player.src = playable;
+    player.onended = () => stopPlayback();
+  }, [playable, stopPlayback]);
 
   const loadFile = useCallback(async (file: File) => {
     stopPlayback();
@@ -217,35 +246,29 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   }, [revealed]);
 
   const playFrom = useCallback((from: number) => {
-    if (!buffer) return;
-    nodeRef.current?.stop();
-    nodeRef.current = null;
+    const player = playerRef.current;
+    if (!buffer || !player || !playable) return;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
     const begin = Math.min(Math.max(from, 0), Math.max(0, end - 0.05));
-    const ctx = ctxRef.current ?? new AudioContext();
-    ctxRef.current = ctx;
-    // A context built outside a user gesture comes up suspended: its clock never
-    // moves, so nothing is heard and the playhead sits still saying "Pause".
-    if (ctx.state === 'suspended') void ctx.resume();
-    const node = ctx.createBufferSource();
-    node.buffer = buffer;
-    node.connect(ctx.destination);
-    node.playbackRate.value = rateRef.current;
-    node.onended = () => stopPlayback();
-    // The length is in clip seconds, so a faster rate simply gets there sooner.
-    node.start(0, begin, Math.max(0.05, end - begin));
-    nodeRef.current = node;
-    anchorRef.current = { at: begin, clock: ctx.currentTime };
+    player.playbackRate = rateRef.current;
+    player.currentTime = begin;
+    void player.play().catch(() => stopPlayback());
     setPlaying(true);
+    setPlayhead(begin);
 
+    // Follows the player, and stops it at the end edge of the selection.
     const tick = () => {
-      const { at, clock } = anchorRef.current;
-      setPlayhead(at + (ctx.currentTime - clock) * rateRef.current);
+      const now = player.currentTime;
+      if (now >= end) {
+        stopPlayback();
+        return;
+      }
+      setPlayhead(now);
       rafRef.current = requestAnimationFrame(tick);
     };
-    tick();
-  }, [buffer, end, stopPlayback]);
+    rafRef.current = requestAnimationFrame(tick);
+  }, [buffer, playable, end, stopPlayback]);
 
   /** Plays from the cursor to the end edge, restarting at the start when spent. */
   const playSelection = () => {
@@ -253,16 +276,9 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
     playFrom(cursor >= end - 0.05 ? start : cursor);
   };
 
-  /** Changes speed without the playhead jumping: bank the position reached at
-   *  the old rate, then start counting again at the new one. */
+  /** Changes speed, even mid-play, keeping the voices at their own pitch. */
   const changeRate = (next: number) => {
-    const ctx = ctxRef.current;
-    const node = nodeRef.current;
-    if (ctx && node) {
-      const { at, clock } = anchorRef.current;
-      anchorRef.current = { at: at + (ctx.currentTime - clock) * rateRef.current, clock: ctx.currentTime };
-      node.playbackRate.value = next;
-    }
+    if (playerRef.current) playerRef.current.playbackRate = next;
     rateRef.current = next;
     setRate(next);
   };
