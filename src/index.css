@@ -4255,7 +4255,7 @@ html { scroll-behavior: smooth; }
 
 .cn-timing-silence {
   display: grid;
-  grid-template-columns: 4.2rem 3.4rem 1fr auto;
+  grid-template-columns: 3.6rem 4.2rem 3.4rem 1fr auto;
   align-items: baseline;
   gap: 0.75rem;
   width: 100%;
@@ -4273,6 +4273,12 @@ html { scroll-behavior: smooth; }
 .cn-timing-silence:hover,
 .cn-timing-silence:focus-visible {
   border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
+
+.cn-timing-turn {
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
 }
 
 .cn-timing-at {

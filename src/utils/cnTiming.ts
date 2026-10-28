@@ -29,6 +29,8 @@ export interface TimingSilence {
   explained: 'announced' | 'acknowledged' | null;
   /** What this silence alone would rate, 1 to 5. */
   level: number;
+  /** When the line that broke the silence starts, in ms since the epoch: places it in a turn. */
+  lineStart: number;
 }
 
 export interface CnTimingSuggestion {
@@ -113,7 +115,7 @@ export function suggestCnTiming(
       // The agent said it was looking into something, then nothing came until the user spoke up.
       if (!isUser(prior.role) && HOLDING.test(prior.text) && !prior.text.trim().endsWith('?') && seconds >= 2) {
         const announcedLevel = Math.min(5, levelFor(seconds) + 1);
-        silences.push({ ...quiet, seconds, kind: 'stall', speaker: 'user', after: prior.text, explained: 'announced', level: Math.min(3, announcedLevel) });
+        silences.push({ ...quiet, seconds, kind: 'stall', speaker: 'user', after: prior.text, explained: 'announced', level: Math.min(3, announcedLevel), lineStart: line.start });
       }
       return;
     }
@@ -133,7 +135,7 @@ export function suggestCnTiming(
     if (!explained && ACKNOWLEDGED.test(line.text.slice(0, 160))) explained = 'acknowledged';
     const length = levelFor(seconds);
     const level = explained ? Math.min(5, length + 1) : length;
-    silences.push({ ...quiet, seconds, kind, speaker: line.role, after: kind === 'wait' ? prior.text : undefined, explained, level });
+    silences.push({ ...quiet, seconds, kind, speaker: line.role, after: kind === 'wait' ? prior.text : undefined, explained, level, lineStart: line.start });
   });
 
   const replies = silences.filter(s => s.kind === 'reply').map(s => s.seconds).sort((a, b) => a - b);

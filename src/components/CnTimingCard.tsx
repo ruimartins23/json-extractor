@@ -5,6 +5,8 @@ interface CnTimingCardProps {
   suggestion: CnTimingSuggestion;
   /** Moves the audio cursor to a moment in the recording, in seconds. */
   onHear: (seconds: number) => void;
+  /** The timeline turn a line starting at this moment (ms since the epoch) belongs to. */
+  turnAt?: (ms: number) => number | null;
 }
 
 const clock = (seconds: number) => {
@@ -27,7 +29,7 @@ function whatHappened(s: TimingSilence): string {
  * The CN-Timing rating the silences point to, with the reason in words a rater
  * can check by ear, and a clear note that the rest of the rubric is theirs.
  */
-export function CnTimingCard({ suggestion, onHear }: CnTimingCardProps) {
+export function CnTimingCard({ suggestion, onHear, turnAt }: CnTimingCardProps) {
   const { score, reason, close, notable, replies, opening } = suggestion;
 
   return (
@@ -66,6 +68,12 @@ export function CnTimingCard({ suggestion, onHear }: CnTimingCardProps) {
                   title="Click to hear it, from a second before"
                   onClick={() => onHear(Math.max(0, s.from - 1))}
                 >
+                  <span className="cn-timing-turn">
+                    {(() => {
+                      const turn = turnAt?.(s.lineStart);
+                      return turn ? `Turn ${turn}` : '';
+                    })()}
+                  </span>
                   <span className="cn-timing-at">{clock(s.from)}</span>
                   <span className="cn-timing-length">{s.seconds.toFixed(1)} s</span>
                   <span className="cn-timing-what">{whatHappened(s)}</span>

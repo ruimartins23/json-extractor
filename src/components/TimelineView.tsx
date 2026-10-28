@@ -513,6 +513,17 @@ export function TimelineView({
       : null),
     [linedUp, audioInfo, audioSync, sessionStartMs, data.events, data.speech, turns],
   );
+  /** The turn of the timeline row a line starting at `ms` falls in: the last row begun by then. */
+  const turnAt = useCallback((ms: number) => {
+    let found: number | null = null;
+    data.events.forEach((event, i) => {
+      if (event.type !== 'message') return;
+      const start = event.spokenAt ?? (event.timestamp ? new Date(event.timestamp).getTime() : NaN);
+      if (start <= ms + 50 && turns.turnOf[i] > 0) found = turns.turnOf[i];
+    });
+    return found;
+  }, [data.events, turns]);
+
   // A CN-Timing rating suggested from the agent's silences, once the recording is lined up.
   const cnTiming = useMemo(
     () => (linedUp && audioInfo?.activity && audioSync && sessionStartMs !== null && data.speech && data.spokenLines?.length
@@ -769,7 +780,7 @@ export function TimelineView({
         onUndoLineUp={undoLineUp}
       />
 
-      {cnTiming && <CnTimingCard suggestion={cnTiming} onHear={seekRecording} />}
+      {cnTiming && <CnTimingCard suggestion={cnTiming} onHear={seekRecording} turnAt={turnAt} />}
 
       <div className="export-section glass">
         <div className="export-header">
