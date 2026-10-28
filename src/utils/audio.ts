@@ -87,16 +87,85 @@ export function formatClock(seconds: number): string {
   return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 }
 
+/** -1 dBFS: room so a loud recording does not clip once it is compressed. */
+const HEADROOM = 0.891;
+
+/**
+ * How much to scale a slice so its loudest sample sits at -1 dBFS, or 1 when it
+ * already does. Lossy codecs overshoot near full scale, and the recorder sums the
+ * microphone and the tab, so a loud take can reach or pass the limit and crackle.
+ */
+function headroomGain(buffer: AudioBuffer, startFrame: number, endFrame: number, channels: number): number {
+  let peak = 0;
+  for (let c = 0; c < channels; c++) {
+    const data = buffer.getChannelData(c);
+    for (let i = startFrame; i < endFrame; i++) {
+      const v = Math.abs(data[i]);
+      if (v > peak) peak = v;
+    }
+  }
+  return peak > HEADROOM ? HEADROOM / peak : 1;
+}
+
+/**
+ * The 2-byte AAC-LC AudioSpecificConfig an .m4a needs to be playable, written
+ * from the known format rather than taken from the encoder. Safari hands back a
+ * whole ES descriptor in its place, which nested inside the file's own descriptor
+ * leaves players reading garbage.
+ */
+function aacConfig(sampleRate: number, channels: number): Uint8Array {
+  const rates = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
+  const index = rates.indexOf(sampleRate);
+  if (index < 0) {
+    // Escape code 15, then the rate itself in 24 bits.
+    const bits = (2n << 35n) | (15n << 31n) | (BigInt(sampleRate) << 7n) | (BigInt(channels) << 3n);
+    return Uint8Array.from({ length: 5 }, (_, i) => Number((bits >> BigInt(8 * (4 - i))) & 0xffn));
+  }
+  const value = (2 << 11) | (index << 7) | (channels << 3);
+  return new Uint8Array([value >> 8, value & 0xff]);
+}
+
 /**
  * Encode a slice of an AudioBuffer to .m4a (AAC in an MP4 container) using the
  * browser's native encoder, so no transcoding library is needed.
  */
+/**
+ * Whether both sides of a stereo slice carry the same sound, as a mono mix copied
+ * to both does. Judged by how much they differ overall (under -40 dB), since a
+ * take that went through a codec is never sample-for-sample identical.
+ */
+function identicalSides(buffer: AudioBuffer, startFrame: number, endFrame: number): boolean {
+  const left = buffer.getChannelData(0);
+  const right = buffer.getChannelData(1);
+  let difference = 0;
+  let level = 0;
+  for (let i = startFrame; i < endFrame; i++) {
+    difference += (left[i] - right[i]) ** 2;
+    level += left[i] ** 2 + right[i] ** 2;
+  }
+  return difference <= 1e-4 * (level / 2) + 1e-9;
+}
+
+/** Renders a recording at another sample rate. */
+async function resample(buffer: AudioBuffer, rate: number): Promise<AudioBuffer> {
+  const offline = new OfflineAudioContext(buffer.numberOfChannels, Math.max(1, Math.ceil(buffer.duration * rate)), rate);
+  const source = offline.createBufferSource();
+  source.buffer = buffer;
+  source.connect(offline.destination);
+  source.start();
+  return offline.startRendering();
+}
+
 export async function encodeToM4A(
-  buffer: AudioBuffer,
+  original: AudioBuffer,
   startSec: number,
   endSec: number,
   onProgress?: (fraction: number) => void,
 ): Promise<Blob> {
+  // The browser's AAC encoder only takes 44.1 and 48 kHz. Audio decoded on a
+  // computer running at another rate (a headset in call mode is 16 or 24 kHz)
+  // is brought to 48 kHz first, instead of the download silently never coming.
+  const buffer = original.sampleRate === 44100 || original.sampleRate === 48000 ? original : await resample(original, 48000);
   const sampleRate = buffer.sampleRate;
   const channels = Math.min(2, buffer.numberOfChannels);
   const startFrame = Math.max(0, Math.floor(startSec * sampleRate));
@@ -112,8 +181,13 @@ export async function encodeToM4A(
   });
 
   let encoderError: Error | null = null;
+  const description = aacConfig(sampleRate, channels);
   const encoder = new AudioEncoder({
-    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+    output: (chunk, meta) =>
+      muxer.addAudioChunk(
+        chunk,
+        meta?.decoderConfig ? { ...meta, decoderConfig: { ...meta.decoderConfig, description } } : meta,
+      ),
     error: (e) => { encoderError = e instanceof Error ? e : new Error(String(e)); },
   });
   encoder.configure({ codec: 'mp4a.40.2', sampleRate, numberOfChannels: channels, bitrate: 128000 });
@@ -121,6 +195,7 @@ export async function encodeToM4A(
   // Feed the PCM in planar chunks; AudioData wants all of one channel, then the next.
   const CHUNK = 8192;
   const source = Array.from({ length: channels }, (_, c) => buffer.getChannelData(c));
+  const gain = headroomGain(buffer, startFrame, endFrame, channels);
 
   for (let offset = 0; offset < total; offset += CHUNK) {
     if (encoderError) throw encoderError;
@@ -129,6 +204,7 @@ export async function encodeToM4A(
     for (let c = 0; c < channels; c++) {
       planar.set(source[c].subarray(startFrame + offset, startFrame + offset + frames), c * frames);
     }
+    if (gain !== 1) for (let i = 0; i < planar.length; i++) planar[i] *= gain;
     const data = new AudioData({
       format: 'f32-planar',
       sampleRate,
@@ -175,16 +251,25 @@ export async function encodeToMP3(
   const total = endFrame - startFrame;
   if (total <= 0) throw new Error('The selected range is empty.');
 
-  const encoder = new Mp3Encoder(channels, sampleRate, 128);
+  // This MP3 encoder splits the bitrate evenly between the two sides and cannot
+  // save bits for hard moments. The tool's own recordings carry one mix on both
+  // sides, so those go out as one channel and every bit lands on the voices;
+  // quiet speech smeared at 64 kbps a side. A real two-sided call (agent on one
+  // side, user on the other) keeps both at 192, which matches the .m4a.
+  const sameOnBothSides = channels > 1 && identicalSides(buffer, startFrame, endFrame);
+  const outChannels = sameOnBothSides ? 1 : channels;
+  const encoder = new Mp3Encoder(outChannels, sampleRate, outChannels > 1 ? 192 : 128);
   const parts: Uint8Array[] = [];
   const left = buffer.getChannelData(0);
-  const right = channels > 1 ? buffer.getChannelData(1) : null;
+  const right = outChannels > 1 ? buffer.getChannelData(1) : null;
+
+  const gain = headroomGain(buffer, startFrame, endFrame, channels);
 
   // lame wants 16-bit signed samples.
   const toInt16 = (src: Float32Array, from: number, count: number) => {
     const out = new Int16Array(count);
     for (let i = 0; i < count; i++) {
-      const v = Math.max(-1, Math.min(1, src[from + i]));
+      const v = Math.max(-1, Math.min(1, src[from + i] * gain));
       out[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
     }
     return out;
