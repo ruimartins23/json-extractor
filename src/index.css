@@ -3826,7 +3826,7 @@ html { scroll-behavior: smooth; }
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  margin: 1rem 0 0.25rem -1rem;
+  margin: 1rem 0 0.25rem -0.35rem;
 }
 
 .timeline-list > .turn-divider:first-child {
@@ -4374,4 +4374,12 @@ html { scroll-behavior: smooth; }
 .audio-lineup-hint {
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+/* Tags the log had on a line that the call did not send out. */
+.dropped-tags {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }

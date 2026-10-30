@@ -21,6 +21,8 @@ export interface ParsedEvent {
   timestamp?: string;
   /** For a spoken line: when it starts being said, in ms since the epoch. `timestamp` is when it finished. */
   spokenAt?: number;
+  /** Tags the log's copy of this line had, like [warmly], that the call did not send out. */
+  droppedTags?: string[];
   duplicateCount?: number;
 }
 
@@ -64,7 +66,22 @@ interface StreamRepair {
   /** Cut-off assembled text, mapped to what the streamed fragments actually said. */
   completions: Map<string, string>;
   turnsCompleted: number;
+  /**
+   * Each agent transcript chunk, mapped to the words the call actually sent out
+   * for that line (sessionOutput.text). The chunk names the agent; the sent text
+   * is what was said, without the voice directions the log carries.
+   */
+  sent: Map<unknown, string>;
+  /** Agent lines whose log carried voice directions, like [warmly], that were not sent. */
+  directionsDropped: number;
+  /** For each agent transcript chunk, the tags its log had that were not sent. */
+  droppedTags: Map<unknown, string[]>;
+  /** Agent lines that could not be found in the sent text, so they show as logged. */
+  linesUnmatched: number;
 }
+
+/** A voice direction the agent model writes for the speech engine, like [warmly]. */
+const DIRECTION = /\[[^\]\n]{1,40}\]/g;
 
 /** Where one whole line ends and the next begins, when two are shown as one. */
 const SENTENCE_END = /[.?!\u2026]["')\]]?$/;
@@ -77,8 +94,9 @@ function planStreamRepair(data: unknown): StreamRepair {
   const rebuilt = new Map<unknown, RebuiltTurn>();
   const keepRecognition = new Set<unknown>();
   const completions = new Map<string, string>();
+  const sent = new Map<unknown, string>();
   if (!Array.isArray(data)) {
-    return { rebuilt, keepRecognition, turnsRebuilt: 0, completions, turnsCompleted: 0 };
+    return { rebuilt, keepRecognition, turnsRebuilt: 0, completions, turnsCompleted: 0, sent, directionsDropped: 0, droppedTags: new Map(), linesUnmatched: 0 };
   }
 
   const covered = new Set<number>();
@@ -90,6 +108,7 @@ function planStreamRepair(data: unknown): StreamRepair {
   const alreadyShown = new Map<string, number>();
   const spokenByTurn = new Map<number, string[]>();
   const userByTurn = new Map<number, string[]>();
+  const agentLinesByTurn = new Map<number, { chunks: any[]; text: string }[]>();
   const said = (value: string) => value.replace(/\s+/g, ' ').trim();
   // The words alone, so punctuation and capitals the recogniser revised do not count.
   const words = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
@@ -115,7 +134,11 @@ function planStreamRepair(data: unknown): StreamRepair {
           }
         } else if (role) {
           lastSpeaker = role;
-          if (spoken) spokenByTurn.set(turn, [...(spokenByTurn.get(turn) ?? []), spoken]);
+          if (spoken) {
+            spokenByTurn.set(turn, [...(spokenByTurn.get(turn) ?? []), spoken]);
+            const chunks = (message?.chunks ?? []).filter((chunk: any) => typeof chunk?.transcript === 'string');
+            agentLinesByTurn.set(turn, [...(agentLinesByTurn.get(turn) ?? []), { chunks, text: spoken }]);
+          }
         }
       });
     }
@@ -185,12 +208,48 @@ function planStreamRepair(data: unknown): StreamRepair {
     });
   });
 
+  // Each agent line, found in the text the call sent out for its turn: its words
+  // in order, with the log's voice directions left out of the search. Whatever
+  // was really sent, a direction included, is what the line then shows.
+  let directionsDropped = 0;
+  const droppedTags = new Map<unknown, string[]>();
+  let linesUnmatched = 0;
+  const escape = (word: string) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const between = String.raw`(?:\s|\[[^\]\n]{1,40}\])`;
+  agentLinesByTurn.forEach((lines, turn) => {
+    const streamed = text.get(turn);
+    if (!streamed) return;
+    let cursor = 0;
+    for (const line of lines) {
+      const bare = line.text.replace(DIRECTION, ' ').split(/\s+/).filter(Boolean);
+      if (bare.length === 0) continue;
+      const pattern = new RegExp(`${between}*${bare.map(escape).join(`${between}+`)}`);
+      const match = pattern.exec(streamed.slice(cursor));
+      if (!match) {
+        linesUnmatched++;
+        continue;
+      }
+      cursor += match.index + match[0].length;
+      const words = match[0].trim();
+      const hasDirection = (value: string) => value.search(DIRECTION) >= 0;
+      if (hasDirection(line.text) && !hasDirection(words)) {
+        directionsDropped++;
+        if (line.chunks[0]) droppedTags.set(line.chunks[0], line.text.match(DIRECTION) ?? []);
+      }
+      line.chunks.forEach((chunk, k) => sent.set(chunk, k === 0 ? words : ''));
+    }
+  });
+
   return {
     rebuilt,
     keepRecognition,
     turnsRebuilt: rebuilt.size,
     completions,
     turnsCompleted: completions.size,
+    sent,
+    directionsDropped,
+    droppedTags,
+    linesUnmatched,
   };
 }
 
@@ -280,6 +339,10 @@ export function parseAITrainingJSON(
         turnsRebuilt: 0,
         completions: new Map<string, string>(),
         turnsCompleted: 0,
+        sent: new Map<unknown, string>(),
+        directionsDropped: 0,
+        droppedTags: new Map<unknown, string[]>(),
+        linesUnmatched: 0,
       };
 
   // Where each line really starts, since lines are stamped when they finish.
@@ -534,7 +597,9 @@ export function parseAITrainingJSON(
       // and explicitly ignore the top-level recognitionResult/sessionOutput to avoid duplicates.
       if (typeof obj.transcript === 'string' && structuralKey === 'chunks') {
         role = currentAgent || 'user';
-        content = obj.transcript;
+        // An agent line shows the words the call sent out; the log's copy can
+        // carry voice directions for the speech engine that were never sent.
+        content = repair.sent.get(obj) ?? obj.transcript;
       } else if (repair.rebuilt.has(obj)) {
         // A turn that never got its assembled message, put back together from
         // the streamed fragments so the conversation does not just stop.
@@ -575,6 +640,7 @@ export function parseAITrainingJSON(
         messageContent: content,
         timestamp: currentTime,
         spokenAt: speechTiming?.starts.get(obj),
+        droppedTags: repair.droppedTags.get(obj),
         raw: { agent: currentAgent, ...obj }
       });
     }
@@ -651,6 +717,7 @@ export function parseAITrainingJSON(
         // while streamed fragments already carry their own spaces.
         const gap = SENTENCE_END.test(before) && SENTENCE_START.test(after) ? ' ' : '';
         lastEvent.messageContent = before + gap + after;
+        if (event.droppedTags?.length) lastEvent.droppedTags = [...(lastEvent.droppedTags ?? []), ...event.droppedTags];
       } else {
         finalEvents.push(event);
       }
@@ -735,6 +802,22 @@ function checkTranscript(
       `${repair.turnsCompleted} agent ${repair.turnsCompleted === 1 ? 'line was' : 'lines were'} ` +
         `written down cut off mid sentence and ${repair.turnsCompleted === 1 ? 'has' : 'have'} been ` +
         'completed from the streamed pieces.',
+    );
+  }
+
+  if (repair.directionsDropped > 0) {
+    notes.push(
+      `${repair.directionsDropped} agent ${repair.directionsDropped === 1 ? 'line carries' : 'lines carry'} ` +
+        'tags in the log, like [warmly], that are not in the text the call sent out. Each one is marked in the timeline. ' +
+        'The timeline shows the text as sent.',
+    );
+  }
+
+  if (repair.linesUnmatched > 0) {
+    notes.push(
+      `${repair.linesUnmatched} agent ${repair.linesUnmatched === 1 ? 'line does' : 'lines do'} not match ` +
+        'the text the call sent out, so ' + (repair.linesUnmatched === 1 ? 'it is' : 'they are') +
+        ' shown as logged. Worth checking against the recording.',
     );
   }
 

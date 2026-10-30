@@ -1324,6 +1324,11 @@ function TimelineItem({ event, index, globalIndex, expandSignal, reviewStatus, o
       </div>
 
       {isMessage && <div className="message-content">{event.messageContent}</div>}
+      {isMessage && event.droppedTags && event.droppedTags.length > 0 && (
+        <div className="dropped-tags" title="The log's copy of this line had these tags. They are not in the text the call sent out.">
+          Tag{event.droppedTags.length > 1 ? 's' : ''} in log, not sent: {event.droppedTags.join(' ')}
+        </div>
+      )}
 
       {noteOpen && (
         <div className="note-editor animate-fade-in">
