@@ -539,6 +539,33 @@ export function TimelineView({
     setSeekAnnouncement(`Audio cursor moved to ${audioClock(seconds)}`);
   }, []);
 
+  // The conversation beside the wave, each line where it starts in the recording.
+  const audioLines = useMemo(() => {
+    if (!audioSync || sessionStartMs === null) return [];
+    return data.events.flatMap((event, i) => {
+      const text = event.type === 'message' ? (event.messageContent ?? '').trim() : '';
+      if (!text) return [];
+      const user = (event.messageRole ?? '').toLowerCase() === 'user';
+      const stamped = event.timestamp ? new Date(event.timestamp).getTime() : NaN;
+      const ms = event.spokenAt ?? stamped;
+      const offset = isNaN(ms) ? null : (ms - sessionStartMs) / 1000;
+      const at = offset === null ? null : offset + (user ? audioSync.userLead : audioSync.lead);
+      return [{
+        id: String(i),
+        role: event.messageRole ?? 'agent',
+        user,
+        text,
+        at: at !== null && at >= 0 && at <= audioSync.duration ? at : null,
+        offset,
+        label: isNaN(stamped) ? '' : formatOffset(stamped - sessionStartMs),
+      }];
+    });
+  }, [data.events, audioSync, sessionStartMs]);
+  const jumpToLine = useCallback((id: string) => {
+    const line = audioLines.find(l => l.id === id);
+    if (line && line.offset !== null) seekAudio(line.offset, line.user ? 'user' : 'agent', line.label);
+  }, [audioLines, seekAudio]);
+
   const handleDownloadJson = () => {
     if (data.rawJsonText) downloadFile(data.rawJsonText, summaryFileName);
   };
@@ -778,6 +805,8 @@ export function TimelineView({
         lineUpLabel={seekTarget?.label ?? null}
         onLineUp={lineUpHere}
         onUndoLineUp={undoLineUp}
+        lines={audioLines}
+        onLineJump={jumpToLine}
       />
 
       {cnTiming && <CnTimingCard suggestion={cnTiming} onHear={seekRecording} turnAt={turnAt} />}

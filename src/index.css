@@ -4034,8 +4034,126 @@ html { scroll-behavior: smooth; }
   flex: 1 1 16rem;
 }
 
-.audio-markers {
+.audio-markers,
+.audio-lines {
+  min-width: 0;
+}
+
+/* Markers and the transcript sit side by side under the wave. */
+.audio-together {
   margin: -0.3rem 0 0.9rem;
+}
+
+.audio-together.split {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.audio-marker-list,
+.audio-line-list {
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
+.audio-lines-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.audio-line-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+}
+
+.audio-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+
+.audio-line:disabled { cursor: default; }
+
+.audio-line:not(:disabled):hover,
+.audio-line:focus-visible {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.audio-line.active {
+  border-left-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--foreground);
+}
+
+.audio-line-at {
+  flex: none;
+  width: 3.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.audio-line-body { min-width: 0; }
+
+.audio-line-role {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.audio-line.user .audio-line-role { color: var(--primary); }
+
+/* The wave scrolls sideways once zoomed in; the padding keeps the edge handles whole. */
+.audio-scroll {
+  overflow-x: auto;
+  margin: 0 -14px;
+  padding: 4px 14px;
+}
+
+.wave-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.wave-zoom .icon-btn:hover {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--foreground);
+}
+
+.wave-zoom .icon-btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.wave-zoom-level {
+  min-width: 4.2rem;
+  text-align: center;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
 }
 
 .audio-markers-summary {

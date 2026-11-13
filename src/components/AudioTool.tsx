@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { AudioLines, ChevronDown, Play, Pause, Scissors, RotateCcw, Crosshair, Undo2, Hourglass, MapPin, Pencil, X } from 'lucide-react';
+import { AudioLines, ChevronDown, Play, Pause, Scissors, RotateCcw, Crosshair, Undo2, Hourglass, MapPin, Pencil, X, ZoomIn, ZoomOut, MessageSquareText } from 'lucide-react';
 import { decodeAudioFile, encodeAudio, waveformPeaks, formatClock, playbackUrl } from '../utils/audio';
 import type { AudioFormat } from '../utils/audio';
 import { recordingStartOf } from '../utils/recordingStore';
@@ -13,6 +13,16 @@ export interface AudioMarker {
   /** Seconds into the recording. */
   at: number;
   text: string;
+}
+
+/** A line of the conversation, shown beside the wave. */
+export interface AudioLine {
+  id: string;
+  role: string;
+  user: boolean;
+  text: string;
+  /** Where it starts in the recording, in seconds, or null when it is not in it. */
+  at: number | null;
 }
 
 interface AudioToolProps {
@@ -40,9 +50,14 @@ interface AudioToolProps {
   /** That timestamp really happens at this many seconds into the recording. */
   onLineUp?: (seconds: number) => void;
   onUndoLineUp?: () => void;
+  /** The conversation, to read along with the recording. */
+  lines?: AudioLine[];
+  onLineJump?: (id: string) => void;
 }
 
 const BUCKETS = 700;
+const ZOOMS = [1, 2, 4, 8];
+const PAUSE_KEY = 'ai-json-organizer:pause-stays';
 type Drag = 'start' | 'end' | 'cursor' | null;
 
 /** mm:ss.s — precise enough to trim on, still readable. */
@@ -51,7 +66,7 @@ function preciseClock(seconds: number): string {
   return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
 }
 
-export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange, seekTo, onAudioInfo, sessionOffset, linesStartJumps, listSilences, onMarkersChange, lineUpLabel, onLineUp, onUndoLineUp }: AudioToolProps) {
+export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange, seekTo, onAudioInfo, sessionOffset, linesStartJumps, listSilences, onMarkersChange, lineUpLabel, onLineUp, onUndoLineUp, lines, onLineJump }: AudioToolProps) {
   const [open, setOpen] = useState(!!initialFile);
   const [buffer, setBuffer] = useState<AudioBuffer | null>(null);
   const [sourceName, setSourceName] = useState('');
@@ -66,6 +81,15 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   const [end, setEnd] = useState(0);
   const [cursor, setCursor] = useState(0);
   const [rate, setRate] = useState(1);
+  const [zoom, setZoom] = useState(1);
+  // Pause can leave the cursor where it stopped, or put it back where play began.
+  const [pauseStays, setPauseStays] = useState(() => {
+    try {
+      return localStorage.getItem(PAUSE_KEY) !== '0';
+    } catch {
+      return true;
+    }
+  });
   const [status, setStatus] = useState<'idle' | 'decoding'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -76,6 +100,10 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   const inputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lineListRef = useRef<HTMLOListElement>(null);
+  const shownZoomRef = useRef(1);
+  const zoomAnchorRef = useRef<{ time: number; x: number } | null>(null);
   /** Plays through the page's own audio player, which keeps the pitch when sped up. */
   const playerRef = useRef<HTMLAudioElement | null>(null);
   const [playable, setPlayable] = useState<string | null>(null);
@@ -86,7 +114,7 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
   const handledSeekRef = useRef<number | null>(null);
   const [revealed, setRevealed] = useState(0);
 
-  const peaks = useMemo(() => (buffer ? waveformPeaks(buffer, BUCKETS) : []), [buffer]);
+  const peaks = useMemo(() => (buffer ? waveformPeaks(buffer, BUCKETS * zoom) : []), [buffer, zoom]);
   const duration = buffer?.duration ?? 0;
   const trimmed = Math.max(0, end - start);
   const pct = (t: number) => (duration ? (t / duration) * 100 : 0);
@@ -272,7 +300,12 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
 
   /** Plays from the cursor to the end edge, restarting at the start when spent. */
   const playSelection = () => {
-    if (playing) return stopPlayback();
+    if (playing) {
+      const at = playerRef.current?.currentTime;
+      stopPlayback();
+      if (pauseStays && at !== undefined) setCursor(Math.min(at, end));
+      return;
+    }
     playFrom(cursor >= end - 0.05 ? start : cursor);
   };
 
@@ -282,6 +315,82 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
     rateRef.current = next;
     setRate(next);
   };
+
+  const changePauseStays = (stays: boolean) => {
+    setPauseStays(stays);
+    try {
+      localStorage.setItem(PAUSE_KEY, stays ? '1' : '0');
+    } catch {
+      // Storage refused: the choice still holds until the page is closed.
+    }
+  };
+
+  // Zoomed in, the wave scrolls to keep the cursor in view: centred after a
+  // zoom or a jump, a page at a time while playing.
+  const position = playhead ?? cursor;
+  useEffect(() => {
+    const box = scrollRef.current;
+    const track = trackRef.current;
+    if (!box || !track || !duration) return;
+    const x = (position / duration) * track.clientWidth;
+    const view = box.clientWidth;
+    if (shownZoomRef.current !== zoom) {
+      shownZoomRef.current = zoom;
+      // Zoomed with the wheel, the moment under the pointer stays under it.
+      const anchor = zoomAnchorRef.current;
+      zoomAnchorRef.current = null;
+      const pad = parseFloat(getComputedStyle(box).paddingLeft) || 0;
+      box.scrollLeft = anchor ? (anchor.time / duration) * track.clientWidth + pad - anchor.x : x - view / 2;
+    } else if (zoom > 1 && !dragRef.current && (x < box.scrollLeft + 24 || x > box.scrollLeft + view - 24)) {
+      box.scrollLeft = playing ? x - view * 0.1 : x - view / 2;
+    }
+  }, [position, zoom, duration, playing]);
+
+  // Ctrl or ⌘ with the wheel zooms the wave, as does a pinch on a trackpad.
+  const hasWave = !!buffer && open;
+  useEffect(() => {
+    const box = scrollRef.current;
+    const track = trackRef.current;
+    if (!hasWave || !box || !track) return;
+    let pulled = 0;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      pulled += e.deltaY;
+      if (Math.abs(pulled) < 40) return;
+      const step = pulled < 0 ? 1 : -1;
+      pulled = 0;
+      const rect = track.getBoundingClientRect();
+      const time = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) * duration;
+      setZoom(z => {
+        const next = ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, ZOOMS.indexOf(z) + step))];
+        if (next !== z) zoomAnchorRef.current = { time, x: e.clientX - box.getBoundingClientRect().left };
+        return next;
+      });
+    };
+    // Not passive, so the page itself does not zoom.
+    box.addEventListener('wheel', onWheel, { passive: false });
+    return () => box.removeEventListener('wheel', onWheel);
+  }, [hasWave, duration]);
+
+  // The line being said at the cursor: the last one begun by then.
+  const activeLine = useMemo(() => {
+    let found: string | null = null;
+    lines?.forEach(line => {
+      if (line.at !== null && line.at <= position + 0.05) found = line.id;
+    });
+    return found;
+  }, [lines, position]);
+  // Keeps it in view inside its own list, without moving the page.
+  useEffect(() => {
+    const list = lineListRef.current;
+    const item = activeLine !== null ? list?.querySelector<HTMLElement>(`[data-line="${activeLine}"]`) : null;
+    if (!list || !item) return;
+    const top = item.offsetTop - list.offsetTop;
+    if (top < list.scrollTop || top + item.offsetHeight > list.scrollTop + list.clientHeight) {
+      list.scrollTop = top - list.clientHeight / 3;
+    }
+  }, [activeLine]);
 
   const resetTrim = () => {
     setStart(0);
@@ -304,6 +413,26 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
       playSelection();
     }
   };
+
+  // Space plays and pauses from anywhere on the page, not only on the wave,
+  // unless the rater is typing or on a control that Space already works.
+  const playSelectionRef = useRef(playSelection);
+  useEffect(() => {
+    playSelectionRef.current = playSelection;
+  });
+  const loaded = !!buffer;
+  useEffect(() => {
+    if (!loaded) return;
+    const onSpace = (e: KeyboardEvent) => {
+      if (e.key !== ' ' || e.defaultPrevented || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      const on = e.target as HTMLElement | null;
+      if (on?.closest('input, textarea, select, button, a, summary, [contenteditable=""], [contenteditable="true"], [role="button"]')) return;
+      e.preventDefault();
+      playSelectionRef.current();
+    };
+    window.addEventListener('keydown', onSpace);
+    return () => window.removeEventListener('keydown', onSpace);
+  }, [loaded]);
 
   // Publish an encoder that always reflects the current file, trim and format,
   // so downloading can never hand back a stale clip.
@@ -371,11 +500,13 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    canvas.width = w * dpr;
+    // Zoomed in, the wave is wide: stay under the widest canvas a browser will paint.
+    const scale = Math.min(dpr, 16000 / Math.max(1, w));
+    canvas.width = w * scale;
     canvas.height = h * dpr;
     const g = canvas.getContext('2d');
     if (!g) return;
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.setTransform(scale, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, w, h);
 
     // Painted, not styled, so the colours have to be read off the theme. They
@@ -402,7 +533,9 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
       g.fillRect(x, (h - barH) / 2, Math.max(0.8, barW - 0.4), barH);
     });
     // `open` matters: the canvas is unmounted while collapsed, so re-expanding needs a redraw.
-  }, [peaks, buffer, start, end, open]);
+  }, [peaks, buffer, start, end, open, zoom]);
+
+  const hasLines = !!lines && lines.length > 0;
 
   return (
     <div className={`audio-panel glass ${open ? '' : 'collapsed'}`}>
@@ -466,6 +599,34 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
                     </button>
                   ))}
                 </div>
+                <div className="wave-zoom" title="Zoom the wave in to place the cursor more exactly. Ctrl + scroll over the wave does the same.">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label="Zoom out"
+                    disabled={zoom === ZOOMS[0]}
+                    onClick={() => setZoom(z => ZOOMS[Math.max(0, ZOOMS.indexOf(z) - 1)])}
+                  >
+                    <ZoomOut />
+                  </button>
+                  <span className="wave-zoom-level">Zoom {zoom}x</span>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label="Zoom in"
+                    disabled={zoom === ZOOMS[ZOOMS.length - 1]}
+                    onClick={() => setZoom(z => ZOOMS[Math.min(ZOOMS.length - 1, ZOOMS.indexOf(z) + 1)])}
+                  >
+                    <ZoomIn />
+                  </button>
+                </div>
+                <label
+                  className="recorder-toggle"
+                  title="On: pausing leaves the cursor where you stopped. Off: it goes back to where play began."
+                >
+                  <input type="checkbox" checked={pauseStays} onChange={e => changePauseStays(e.target.checked)} />
+                  Pause stays in place
+                </label>
                 <span className="transport-keep">
                   <Scissors className="btn-icon-sm" />
                   Keeping <strong>{formatClock(trimmed)}</strong> of {formatClock(duration)}
@@ -475,8 +636,10 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
                 </button>
               </div>
 
+              <div className="audio-scroll" ref={scrollRef}>
               <div
                 className="audio-track"
+                style={{ width: `${zoom * 100}%` }}
                 ref={trackRef}
                 tabIndex={0}
                 role="group"
@@ -546,11 +709,12 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
                   <span className="audio-handle-bar" />
                 </div>
               </div>
+              </div>
 
               <p className="trim-help">
                 Click anywhere on the wave to listen from there. Drag the two blue edges to set what
-                you keep: the lit part is what gets saved. Space plays and pauses. Right-click the wave
-                to add a marker.
+                you keep: the lit part is what gets saved. Space plays and pauses, anywhere on the page. Right-click the wave
+                to add a marker. Ctrl + scroll over the wave zooms in to place the cursor more exactly.
               </p>
 
               {draft && (
@@ -584,6 +748,8 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
                 </form>
               )}
 
+              {(markers.length > 0 || hasLines) && (
+              <div className={`audio-together ${markers.length > 0 && hasLines ? 'split' : ''}`}>
               {markers.length > 0 && (
                 <div className="audio-markers">
                   <p className="trim-help audio-markers-summary">
@@ -624,6 +790,35 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
                     ))}
                   </ul>
                 </div>
+              )}
+              {hasLines && (
+                <div className="audio-lines">
+                  <p className="trim-help audio-lines-summary">
+                    <MessageSquareText className="btn-icon-sm" />
+                    Transcript. Click a line to go there. The line at the cursor is lit.
+                  </p>
+                  <ol className="audio-line-list" ref={lineListRef}>
+                    {lines!.map(line => (
+                      <li key={line.id} data-line={line.id}>
+                        <button
+                          type="button"
+                          className={`audio-line ${line.user ? 'user' : ''} ${activeLine === line.id ? 'active' : ''}`}
+                          disabled={line.at === null}
+                          title={line.at === null ? 'Not in the recording' : `Move the audio cursor to ${preciseClock(line.at)}`}
+                          onClick={() => onLineJump?.(line.id)}
+                        >
+                          <span className="audio-line-at">{line.at !== null ? preciseClock(line.at) : '–'}</span>
+                          <span className="audio-line-body">
+                            <span className="audio-line-role">{line.role}</span>
+                            <span className="audio-line-text">{line.text}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              </div>
               )}
 
               {sessionOffset && (

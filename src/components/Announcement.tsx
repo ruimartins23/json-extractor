@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, Sparkles } from 'lucide-react';
 
 // Bump this key when a new announcement should re-appear for everyone.
-const STORAGE_KEY = 'ai-json-organizer:announcement:markers-v1';
+const STORAGE_KEY = 'ai-json-organizer:announcement:listening-v1';
 
 export function Announcement() {
   const [visible, setVisible] = useState(() => {
@@ -31,26 +31,29 @@ export function Announcement() {
       </div>
       <div className="announcement-body">
         <h3 className="announcement-title">Quick update</h3>
-        <p>New: markers on the audio.</p>
+        <p>New: easier listening on the audio.</p>
         <ul>
           <li>
-            <strong>Add a marker.</strong> Right-click anywhere on the audio wave, type what happens there
-            (for example a pilot tag) and press Enter.
+            <strong>Transcript beside the audio.</strong> With the JSON loaded, the transcript shows under the
+            wave, next to your markers. Click a line to go there. The line being said lights up as it plays.
           </li>
           <li>
-            <strong>Find it again.</strong> Markers show on the wave in their own colour: hover one to read it,
-            click it to go there. They are also listed under the wave, where you can edit or delete them.
+            <strong>Pause stays in place.</strong> Pausing now leaves the cursor where you stopped, so you can
+            read the time of a delay. Untick "Pause stays in place" to have it go back to where play began.
           </li>
           <li>
-            <strong>In the timeline.</strong> With the JSON loaded, each marker also appears in the timeline
-            where it falls in the call. Click it to hear that moment.
+            <strong>Space works anywhere.</strong> Press Space to play and pause from any part of the page.
           </li>
           <li>
-            Markers are kept in your browser for that recording, so a reload doesn't lose them.
+            <strong>Zoom the wave.</strong> Hold Ctrl (⌘ on a Mac) and scroll over the wave, or use the zoom
+            buttons, up to 8x. It zooms where the mouse is pointing.
           </li>
           <li>
-            In case you missed it: each turn shows the silence before its reply, and a CN-Timing card suggests a
-            rating from those silences.
+            Fixed: words stuck together in the transcript ("I cancertainly help") when a line came in pieces.
+          </li>
+          <li>
+            In case you missed it: right-click the wave to add a marker, each turn shows the silence before its
+            reply, and a CN-Timing card suggests a rating from those silences.
           </li>
         </ul>
         <p className="announcement-warning">

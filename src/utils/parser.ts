@@ -23,6 +23,8 @@ export interface ParsedEvent {
   spokenAt?: number;
   /** Tags the log's copy of this line had, like [warmly], that the call did not send out. */
   droppedTags?: string[];
+  /** The text is a whole line as the call sent it, with no space of its own at either end. */
+  asSent?: boolean;
   duplicateCount?: number;
 }
 
@@ -80,8 +82,8 @@ interface StreamRepair {
   linesUnmatched: number;
 }
 
-/** A voice direction the agent model writes for the speech engine, like [warmly]. */
-const DIRECTION = /\[[^\]\n]{1,40}\]/g;
+/** A voice direction the agent model writes for the speech engine, like [warmly] or <calm>…</calm>. */
+const DIRECTION = /\[[^\]\n]{1,40}\]|<\/?[A-Za-z][^<>\n]{0,39}>/g;
 
 /** Where one whole line ends and the next begins, when two are shown as one. */
 const SENTENCE_END = /[.?!\u2026]["')\]]?$/;
@@ -108,7 +110,7 @@ function planStreamRepair(data: unknown): StreamRepair {
   const alreadyShown = new Map<string, number>();
   const spokenByTurn = new Map<number, string[]>();
   const userByTurn = new Map<number, string[]>();
-  const agentLinesByTurn = new Map<number, { chunks: any[]; text: string }[]>();
+  const agentLinesByTurn = new Map<number, { chunks: any[]; text: string; raw: string; role: string }[]>();
   const said = (value: string) => value.replace(/\s+/g, ' ').trim();
   // The words alone, so punctuation and capitals the recogniser revised do not count.
   const words = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
@@ -122,11 +124,15 @@ function planStreamRepair(data: unknown): StreamRepair {
 
     if (output.diagnosticInfo?.messages?.length) {
       covered.add(turn);
+      // A line can arrive in pieces, one message each ("Hi Maria, I can" then
+      // " certainly help"). Pieces that follow one another are one line, joined
+      // as they came so the spaces they carry are kept.
+      let open: { chunks: any[]; text: string; raw: string; role: string } | null = null;
       output.diagnosticInfo.messages.forEach((message: any) => {
         const role = typeof message?.role === 'string' ? message.role : '';
-        const spoken = said(
-          (message?.chunks ?? []).map((chunk: any) => chunk?.transcript ?? '').join(''),
-        );
+        const raw = (message?.chunks ?? []).map((chunk: any) => chunk?.transcript ?? '').join('');
+        const spoken = said(raw);
+        if (!spoken || role !== open?.role) open = null;
         if (role.toLowerCase() === 'user') {
           if (spoken) {
             alreadyShown.set(wordKey(spoken), (alreadyShown.get(wordKey(spoken)) ?? 0) + 1);
@@ -137,7 +143,14 @@ function planStreamRepair(data: unknown): StreamRepair {
           if (spoken) {
             spokenByTurn.set(turn, [...(spokenByTurn.get(turn) ?? []), spoken]);
             const chunks = (message?.chunks ?? []).filter((chunk: any) => typeof chunk?.transcript === 'string');
-            agentLinesByTurn.set(turn, [...(agentLinesByTurn.get(turn) ?? []), { chunks, text: spoken }]);
+            if (open) {
+              open.chunks.push(...chunks);
+              open.raw += raw;
+              open.text = said(open.raw);
+            } else {
+              open = { chunks, text: spoken, raw, role };
+              agentLinesByTurn.set(turn, [...(agentLinesByTurn.get(turn) ?? []), open]);
+            }
           }
         }
       });
@@ -215,7 +228,8 @@ function planStreamRepair(data: unknown): StreamRepair {
   const droppedTags = new Map<unknown, string[]>();
   let linesUnmatched = 0;
   const escape = (word: string) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const between = String.raw`(?:\s|\[[^\]\n]{1,40}\])`;
+  const tag = String.raw`(?:\[[^\]\n]{1,40}\]|<\/?[A-Za-z][^<>\n]{0,39}>)`;
+  const between = String.raw`(?:\s|${tag})`;
   agentLinesByTurn.forEach((lines, turn) => {
     const streamed = text.get(turn);
     if (!streamed) return;
@@ -223,7 +237,8 @@ function planStreamRepair(data: unknown): StreamRepair {
     for (const line of lines) {
       const bare = line.text.replace(DIRECTION, ' ').split(/\s+/).filter(Boolean);
       if (bare.length === 0) continue;
-      const pattern = new RegExp(`${between}*${bare.map(escape).join(`${between}+`)}`);
+      // A tag that closes the line, like </calm>, belongs to it too.
+      const pattern = new RegExp(`${between}*${bare.map(escape).join(`${between}+`)}(?:\\s*${tag})*`);
       const match = pattern.exec(streamed.slice(cursor));
       if (!match) {
         linesUnmatched++;
@@ -234,7 +249,7 @@ function planStreamRepair(data: unknown): StreamRepair {
       const hasDirection = (value: string) => value.search(DIRECTION) >= 0;
       if (hasDirection(line.text) && !hasDirection(words)) {
         directionsDropped++;
-        if (line.chunks[0]) droppedTags.set(line.chunks[0], line.text.match(DIRECTION) ?? []);
+        if (line.chunks[0]) droppedTags.set(line.chunks[0], (line.text.match(DIRECTION) ?? []).filter(tag => !tag.startsWith('</')));
       }
       line.chunks.forEach((chunk, k) => sent.set(chunk, k === 0 ? words : ''));
     }
@@ -641,6 +656,7 @@ export function parseAITrainingJSON(
         timestamp: currentTime,
         spokenAt: speechTiming?.starts.get(obj),
         droppedTags: repair.droppedTags.get(obj),
+        asSent: repair.sent.has(obj) || undefined,
         raw: { agent: currentAgent, ...obj }
       });
     }
@@ -715,8 +731,11 @@ export function parseAITrainingJSON(
         const after = event.messageContent || '';
         // Two whole lines meet at a sentence end ("ACCT95061." then "I'm upset"),
         // while streamed fragments already carry their own spaces.
-        const gap = SENTENCE_END.test(before) && SENTENCE_START.test(after) ? ' ' : '';
+        // Whole lines taken from the sent text lost the space that was between them.
+        const bare = !!lastEvent.asSent && !!event.asSent && !/\s$/.test(before) && !/^\s/.test(after);
+        const gap = bare || (SENTENCE_END.test(before) && SENTENCE_START.test(after)) ? ' ' : '';
         lastEvent.messageContent = before + gap + after;
+        lastEvent.asSent = event.asSent;
         if (event.droppedTags?.length) lastEvent.droppedTags = [...(lastEvent.droppedTags ?? []), ...event.droppedTags];
       } else {
         finalEvents.push(event);
