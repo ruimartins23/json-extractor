@@ -72,7 +72,7 @@ export function Dropzone({ onFileParsed, onRecordingOnly }: DropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pastedText, setPastedText] = useState('');
-  const [mode, setMode] = useState<EnvironmentMode>('prod single agent');
+  const [mode, setMode] = useState<EnvironmentMode>('prod multi agent');
   const [functionKeyword, setFunctionKeyword] = useState('PythonFunctionTool');
   const [transferKeyword, setTransferKeyword] = useState('agentTransfer');
   const [endSessionKeyword, setEndSessionKeyword] = useState('EndSessionTool');
