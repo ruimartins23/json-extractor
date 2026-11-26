@@ -795,24 +795,39 @@ export function AudioTool({ initialFile, format, onFormatChange, onEncoderChange
                 <div className="audio-lines">
                   <p className="trim-help audio-lines-summary">
                     <MessageSquareText className="btn-icon-sm" />
-                    Transcript. Click a line to go there. The line at the cursor is lit.
+                    Transcript. Click a line to go there, or select its text to copy it. The line at the cursor is lit.
                   </p>
                   <ol className="audio-line-list" ref={lineListRef}>
                     {lines!.map(line => (
                       <li key={line.id} data-line={line.id}>
-                        <button
-                          type="button"
-                          className={`audio-line ${line.user ? 'user' : ''} ${activeLine === line.id ? 'active' : ''}`}
-                          disabled={line.at === null}
-                          title={line.at === null ? 'Not in the recording' : `Move the audio cursor to ${preciseClock(line.at)}`}
-                          onClick={() => onLineJump?.(line.id)}
+                        {/* Not a button, so the words can be selected and copied. A click
+                            jumps there, unless it ended a selection. The time is the
+                            keyboard way in. */}
+                        <div
+                          className={`audio-line ${line.user ? 'user' : ''} ${activeLine === line.id ? 'active' : ''} ${line.at === null ? 'off' : ''}`}
+                          title={line.at === null ? 'Not in the recording' : undefined}
+                          onClick={() => {
+                            if (line.at === null || window.getSelection()?.toString()) return;
+                            onLineJump?.(line.id);
+                          }}
                         >
-                          <span className="audio-line-at">{line.at !== null ? preciseClock(line.at) : '–'}</span>
+                          <button
+                            type="button"
+                            className="audio-line-at"
+                            disabled={line.at === null}
+                            title={line.at === null ? 'Not in the recording' : `Move the audio cursor to ${preciseClock(line.at)}`}
+                            onClick={e => {
+                              e.stopPropagation();
+                              onLineJump?.(line.id);
+                            }}
+                          >
+                            {line.at !== null ? preciseClock(line.at) : '–'}
+                          </button>
                           <span className="audio-line-body">
                             <span className="audio-line-role">{line.role}</span>
                             <span className="audio-line-text">{line.text}</span>
                           </span>
-                        </button>
+                        </div>
                       </li>
                     ))}
                   </ol>

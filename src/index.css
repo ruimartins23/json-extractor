@@ -4088,12 +4088,13 @@ html { scroll-behavior: smooth; }
   line-height: 1.45;
   text-align: left;
   cursor: pointer;
+  user-select: text;
 }
 
-.audio-line:disabled { cursor: default; }
+.audio-line.off { cursor: default; }
 
-.audio-line:not(:disabled):hover,
-.audio-line:focus-visible {
+.audio-line:not(.off):hover,
+.audio-line:focus-within {
   background: color-mix(in srgb, var(--primary) 8%, transparent);
 }
 
@@ -4106,6 +4107,12 @@ html { scroll-behavior: smooth; }
 .audio-line-at {
   flex: none;
   width: 3.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
@@ -4501,3 +4508,6 @@ html { scroll-behavior: smooth; }
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
+
+.audio-line-at:disabled { cursor: default; }
+.audio-line-at:not(:disabled):hover { color: var(--foreground); text-decoration: underline; }
